@@ -1,0 +1,5 @@
+baju_lengan_panjang
+baju_lengan_pendek
+celana_panjang
+celana_pendek
+null

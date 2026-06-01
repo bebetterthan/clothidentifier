@@ -1,0 +1,37 @@
+[Unit]
+Description=Clothing Classifier FastAPI Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/clothing-classifier
+
+Environment=MODEL_PATH=/opt/clothing-classifier/best.onnx
+Environment=LABELS_PATH=/opt/clothing-classifier/labels.txt
+Environment=CONF_THRESHOLD=0.70
+Environment=OMP_NUM_THREADS=4
+Environment=ONNXRUNTIME_CPU_NUM_THREADS=4
+
+ExecStart=/opt/clothing-classifier/venv/bin/uvicorn app:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 2 \
+    --log-level info
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=clothing-classifier
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
