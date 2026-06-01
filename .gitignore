@@ -30,6 +30,7 @@ ssh_config
 # ML model binaries & archives
 *.onnx
 *.zip
+*.pkl
 
 # OS
 .DS_Store
