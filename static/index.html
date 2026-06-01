@@ -4,572 +4,733 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClothBot — Clothing Classifier</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@800&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
 :root {
-  --bg:           #070c18;
-  --surface:      #0d1424;
-  --surface2:     #111d30;
-  --border:       #1a2744;
-  --border-hi:    #2a3f6e;
-  --text:         #e8eaf6;
-  --text-dim:     #5a6a8a;
-  --text-muted:   #8892a4;
-  --accent:       #6366f1;
-  --accent2:      #22d3ee;
-  --green:        #10b981;
-  --orange:       #f59e0b;
-  --red:          #ef4444;
-  --r:            14px;
-  --r-sm:         10px;
+  --ink:         #0F1923;
+  --ink2:        #4A5568;
+  --ink3:        #A0AEC0;
+  --teal:        #0D7377;
+  --teal-lite:   #E6F5F5;
+  --teal-mid:    #5BBCC0;
+  --amber:       #E07B39;
+  --amber-lite:  #FEF3EB;
+  --surface:     #FAFBFC;
+  --card:        #FFFFFF;
+  --border:      #E8EDF2;
+  --term-bg:     #0F1923;
+  --term-border: #1E2D3D;
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  background: var(--surface);
+  color: var(--ink);
   min-height: 100vh;
   font-size: 14px;
 }
 
-/* ── Header ── */
-.hdr {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
+*:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.wrapper {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem;
+}
+
+/* ── HEADER ── */
+header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
-  top: 0;
-  background: var(--bg);
-  z-index: 10;
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
 }
-.logo { display: flex; align-items: center; gap: 11px; }
-.logo-icon {
-  width: 34px; height: 34px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border-radius: 9px;
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand-icon {
+  width: 36px; height: 36px;
+  background: var(--teal);
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+  flex-shrink: 0; color: white;
 }
-.logo-title { font-size: 1rem; font-weight: 700; letter-spacing: -.02em; }
-.logo-sub   { font-size: .7rem; color: var(--text-dim); }
-.pill {
-  display: flex; align-items: center; gap: 6px;
+.brand-text { display: flex; flex-direction: column; gap: 2px; }
+.brand-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 18px;
+  color: var(--ink); letter-spacing: -0.3px; line-height: 1;
+}
+.brand-sub { font-size: 11px; color: var(--ink3); font-weight: 400; }
+.status-badge {
+  display: flex; align-items: center; gap: 7px;
   padding: 5px 12px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  font-size: .7rem;
-  color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 20px;
+  font-size: 12px; color: var(--ink2);
 }
-.dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 5px var(--green);
+.pulse-dot {
+  position: relative; width: 7px; height: 7px;
+  border-radius: 50%; background: #22C55E; flex-shrink: 0;
+}
+.pulse-dot::after {
+  content: ''; position: absolute; inset: 0;
+  border-radius: 50%; background: #22C55E;
+  animation: ping 1.5s ease-out infinite;
+}
+@keyframes ping {
+  0%   { transform: scale(1); opacity: .8; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
-/* ── Pipeline steps ── */
+/* ── STEP INDICATOR ── */
 .steps {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 14px 20px;
-  max-width: 900px;
-  margin: 0 auto;
-  overflow-x: auto;
+  display: flex; align-items: center;
+  margin-bottom: 1.75rem;
 }
 .step {
-  display: flex; align-items: center; gap: 7px;
-  padding: 6px 14px;
-  border-radius: var(--r-sm);
-  font-size: .75rem;
-  font-weight: 500;
-  color: var(--text-dim);
-  white-space: nowrap;
-  transition: all .25s;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500;
+  color: var(--ink3); white-space: nowrap;
 }
-.step.active {
-  background: var(--surface2);
-  border: 1px solid var(--border-hi);
-  color: var(--text);
-}
-.step.done { color: var(--green); }
-.step-n {
-  width: 20px; height: 20px; border-radius: 50%;
-  background: var(--border);
+.step-circle {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  font-size: .65rem; font-weight: 700; flex-shrink: 0;
+  font-size: 11px; font-weight: 700; color: var(--ink3);
+  flex-shrink: 0; transition: all 200ms ease;
 }
-.step.active .step-n {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff;
+.step.active .step-circle { background: var(--teal); border-color: var(--teal); color: white; }
+.step.done   .step-circle { background: var(--teal-lite); border-color: var(--teal); color: var(--teal); }
+.step.active { color: var(--ink); }
+.step.done   { color: var(--teal); }
+.step-line {
+  flex: 1; height: 1px; background: var(--border);
+  margin: 0 8px; min-width: 20px;
+  transition: background 200ms ease;
 }
-.step.done .step-n { background: var(--green); color: #fff; }
-.step-arrow { color: var(--border-hi); font-size: .8rem; }
+.step-line.done { background: var(--teal); }
 
-/* ── Main layout ── */
-.main {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 16px 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-.grid-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 14px;
-}
-@media (max-width: 900px) {
-  .grid-3 { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 580px) {
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+/* ── MAIN GRID ── */
+.main-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1rem; margin-bottom: 1rem;
 }
 
-/* ── Cards ── */
+/* ── CARD ── */
 .card {
-  background: var(--surface);
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--r);
-  overflow: hidden;
+  border-radius: 10px; overflow: hidden;
+  transition: transform 200ms ease, box-shadow 200ms ease;
 }
-.card-hdr {
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(13,115,119,.08);
+}
+.card-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
 }
 .card-title {
-  font-size: .7rem; font-weight: 600;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: .07em;
+  font-size: 12px; font-weight: 500; color: var(--ink2);
+  text-transform: uppercase; letter-spacing: 0.6px;
 }
-.tag {
-  font-size: .68rem; font-weight: 700;
-  padding: 2px 9px; border-radius: 99px;
-}
-.tag-green  { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-.tag-orange { background: #431407; color: #fb923c; border: 1px solid #9a3412; }
-.tag-blue   { background: #0c1a2e; color: #60a5fa; border: 1px solid #1e3a5f; }
-.card-body  { padding: 16px; }
 
-/* ── Input card ── */
-.drop-zone {
-  aspect-ratio: 4/3;
-  border-radius: var(--r-sm);
-  border: 2px dashed var(--border-hi);
-  background: var(--surface2);
+/* ── INPUT CARD ── */
+.dropzone {
+  margin: 16px;
+  border: 1.5px dashed var(--border); border-radius: 8px;
+  min-height: 180px; position: relative;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 8px;
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: border-color .2s, background .2s;
+  gap: 8px; cursor: pointer; overflow: hidden;
+  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
 }
-.drop-zone:hover { border-color: var(--accent); background: #0e1a30; }
-.drop-zone svg   { opacity: .3; }
-.drop-zone span  { font-size: .8rem; }
-.drop-zone small { font-size: .68rem; color: var(--text-dim); }
-#prevImg {
-  width: 100%;
-  aspect-ratio: 4/3;
-  object-fit: cover;
-  border-radius: var(--r-sm);
-  display: none;
+.dropzone:hover, .dropzone.drag-over {
+  border-color: var(--teal); background: var(--teal-lite);
 }
-.btn-row { display: flex; gap: 8px; margin-top: 12px; }
+.dropzone.drag-over { transform: scale(1.02); }
+.dropzone-inner {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px; padding: 20px;
+}
+.dropzone-icon { color: var(--ink3); }
+.dropzone-primary { font-size: 13px; font-weight: 500; color: var(--ink2); text-align: center; }
+.dropzone-hint    { font-size: 11px; color: var(--ink3); text-align: center; }
+.dropzone-preview {
+  position: absolute; inset: 0; display: none;
+}
+.dropzone-preview.show { display: block; }
+.dropzone-preview img {
+  width: 100%; height: 100%; object-fit: cover;
+  border-radius: 6px; display: block;
+}
+.btn-remove {
+  position: absolute; top: 7px; right: 7px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(15,25,35,.7); border: none;
+  color: white; font-size: 14px; line-height: 1;
+  cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  z-index: 2; transition: background 180ms ease;
+}
+.btn-remove:hover { background: rgba(15,25,35,.92); }
+
+.btn-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; padding: 0 16px 16px;
+}
 .btn {
-  flex: 1; padding: 9px 14px;
-  border: 1px solid var(--border-hi);
-  background: var(--surface2);
-  color: var(--text-muted);
-  border-radius: var(--r-sm);
-  font-size: .8rem; font-weight: 600;
-  cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  transition: all .15s;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 500;
+  padding: 8px 12px; border-radius: 7px;
+  cursor: pointer; transition: all 180ms ease;
 }
-.btn:hover { border-color: var(--accent); color: var(--text); }
-.btn:active { transform: scale(.97); }
-.btn-classify {
-  width: 100%; margin-top: 12px; padding: 12px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff; border: none; border-radius: var(--r-sm);
-  font-size: .9rem; font-weight: 700;
-  cursor: pointer; display: none;
-  transition: opacity .2s;
+.btn:active { transform: scale(0.97); }
+.btn-outline {
+  border: 1px solid var(--teal); color: var(--teal); background: transparent;
 }
-.btn-classify:hover    { opacity: .9; }
-.btn-classify:disabled { opacity: .35; cursor: not-allowed; }
+.btn-outline:hover { background: var(--teal-lite); }
+.btn-filled {
+  border: 1px solid var(--teal); color: white; background: var(--teal);
+}
+.btn-filled:hover { background: #0A5E62; border-color: #0A5E62; }
 
-/* ── Result placeholder ── */
-.empty {
-  aspect-ratio: 4/3;
+/* ── CANNY CARD ── */
+.chip {
+  font-size: 10px; font-weight: 500;
+  padding: 2px 8px; border-radius: 10px;
+  background: var(--teal-lite); color: var(--teal);
+}
+.canny-empty {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 10px; color: var(--text-dim); font-size: .8rem;
+  padding: 40px 20px; gap: 10px; color: var(--ink3);
 }
-.empty svg { opacity: .18; }
-
-/* ── YOLO result ── */
-.label-big {
-  font-size: 1.55rem; font-weight: 800;
-  letter-spacing: -.03em; line-height: 1.1;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 10px;
+.canny-empty svg { opacity: .5; }
+.canny-empty-text { font-size: 13px; text-align: center; }
+.canny-result { display: none; }
+.canny-canvas-wrap {
+  background: #000; margin: 12px;
+  border-radius: 7px; overflow: hidden;
 }
-/* Gauge */
-.gauge-wrap { display: flex; justify-content: center; margin: 10px 0 14px; }
-.gauge-svg  { transform: rotate(-90deg); }
-.g-bg       { stroke: var(--surface2); fill: none; }
-.g-fg       { fill: none; stroke-linecap: round; transition: stroke-dashoffset .8s ease, stroke .4s; }
-.gauge-inner {
-  position: relative;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.gauge-txt {
-  position: absolute;
-  text-align: center;
-  pointer-events: none;
-}
-.gauge-pct  { font-size: 1.1rem; font-weight: 800; display: block; line-height: 1; }
-.gauge-lbl  { font-size: .6rem; color: var(--text-dim); display: block; margin-top: 2px; }
-
-/* Probability bars */
-.sec-label { font-size: .68rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 9px; }
-.bar-row   { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.bar-name  { width: 120px; font-size: .72rem; color: var(--text-muted); text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bar-track { flex: 1; height: 5px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
-.bar-fill  { height: 100%; border-radius: 99px; background: var(--accent); transition: width .6s ease; }
-.bar-fill.hi { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
-.bar-pct   { width: 36px; font-size: .68rem; color: var(--text-dim); text-align: right; flex-shrink: 0; }
-
-/* timing row */
-.timing    { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
-.timing span { font-size: .68rem; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
-
-/* ── Fold card ── */
-#foldCard { display: none; }
-.fold-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  align-items: start;
-}
-@media (max-width: 560px) { .fold-grid { grid-template-columns: 1fr; } }
-#foldImg  { width: 100%; border-radius: var(--r-sm); display: block; }
-.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-.meta-box  { background: var(--surface2); border-radius: var(--r-sm); padding: 10px 13px; }
-.meta-lbl  { font-size: .65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
-.meta-val  { font-size: 1rem; font-weight: 700; }
-.legend-item { display: flex; align-items: center; gap: 8px; font-size: .72rem; color: var(--text-muted); margin-bottom: 5px; }
-.legend-dot  { width: 14px; height: 3px; border-radius: 2px; flex-shrink: 0; }
-
-/* ── Spinner ── */
-.spinner {
-  width: 32px; height: 32px;
-  border: 3px solid var(--surface2);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
-  display: none; margin: 28px auto;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Error ── */
-.err-msg {
-  color: var(--red); font-size: .78rem;
-  padding: 9px 13px; margin-top: 10px;
-  background: #1a0505; border: 1px solid #450a0a;
-  border-radius: var(--r-sm); display: none;
+.canny-canvas-wrap canvas {
+  display: block; width: 100%; border-radius: 7px;
 }
 
-/* ── Footer ── */
-.ftr {
-  border-top: 1px solid var(--border);
-  padding: 14px 20px;
-  text-align: center;
-  font-size: .68rem; color: var(--text-dim);
+/* ── LOG PANEL ── */
+.log-panel {
+  background: var(--term-bg);
+  border: 1px solid var(--term-border);
+  border-radius: 10px; overflow: hidden;
+  margin-bottom: 1rem;
 }
-input[type=file] { display: none; }
+.log-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--term-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.log-header-left  { display: flex; align-items: center; gap: 8px; }
+.log-header-right { display: flex; align-items: center; gap: 8px; }
+.log-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--teal-mid);
+  box-shadow: 0 0 6px var(--teal-mid); flex-shrink: 0;
+}
+.log-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 500; color: #CBD5E1;
+}
+.toggle-wrap {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none;
+}
+.toggle-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: #64748B;
+}
+.toggle-pill {
+  position: relative; width: 22px; height: 12px;
+  background: #1E2D3D; border-radius: 6px;
+  transition: background 200ms ease; flex-shrink: 0;
+}
+.toggle-pill.on { background: var(--teal); }
+.toggle-knob {
+  position: absolute; top: 2.5px; left: 2.5px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: white; transition: transform 200ms ease;
+}
+.toggle-pill.on .toggle-knob { transform: translateX(10px); }
+.btn-clear {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: #64748B;
+  background: transparent;
+  border: 1px solid var(--term-border); border-radius: 4px;
+  padding: 3px 9px; cursor: pointer;
+  transition: border-color 200ms, color 200ms;
+}
+.btn-clear:hover { border-color: #334155; color: #94A3B8; }
+.log-body {
+  height: 180px; overflow-y: scroll; padding: 8px 0;
+  scrollbar-width: thin; scrollbar-color: #1E2D3D transparent;
+}
+.log-body::-webkit-scrollbar { width: 3px; }
+.log-body::-webkit-scrollbar-track { background: transparent; }
+.log-body::-webkit-scrollbar-thumb { background: #1E2D3D; border-radius: 2px; }
+.log-entry {
+  display: flex; align-items: flex-start;
+  padding: 3px 14px; gap: 8px;
+  animation: fadeup 150ms ease forwards;
+}
+@keyframes fadeup {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.log-ts {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: #334155;
+  flex-shrink: 0; margin-top: 0.5px;
+}
+.log-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  padding: 0 5px; border-radius: 3px;
+  flex-shrink: 0; margin-top: 0.5px;
+}
+.log-tag.info    { color: #60A5FA; background: rgba(96,165,250,.1); }
+.log-tag.success { color: #34D399; background: rgba(52,211,153,.1); }
+.log-tag.warn    { color: #FBBF24; background: rgba(251,191,36,.1); }
+.log-tag.error   { color: #F87171; background: rgba(248,113,113,.1); }
+.log-msg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #94A3B8; flex: 1; line-height: 1.5;
+}
+
+/* ── FOOTER ── */
+footer {
+  text-align: center; font-size: 11px;
+  color: var(--ink3); padding-top: 1.25rem;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 580px) {
+  .main-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
+<div class="wrapper">
 
-<!-- Header -->
-<header class="hdr">
-  <div class="logo">
-    <div class="logo-icon">
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10a1 1 0 001 1h10a1 1 0 001-1V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z"/>
-      </svg>
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">ClothBot</span>
+        <span class="brand-sub">Clothing Classifier · Fold Planner</span>
+      </div>
     </div>
-    <div>
-      <div class="logo-title">ClothBot</div>
-      <div class="logo-sub">Clothing Classifier + Fold Planner</div>
+    <div class="status-badge">
+      <div class="pulse-dot"></div>
+      <span>Online · YOLOv8l</span>
+    </div>
+  </header>
+
+  <!-- STEP INDICATOR -->
+  <div class="steps">
+    <div class="step active" id="step1">
+      <div class="step-circle" id="sc1">1</div>
+      Input Gambar
+    </div>
+    <div class="step-line" id="sl1"></div>
+    <div class="step" id="step2">
+      <div class="step-circle" id="sc2">2</div>
+      Klasifikasi
+    </div>
+    <div class="step-line" id="sl2"></div>
+    <div class="step" id="step3">
+      <div class="step-circle" id="sc3">3</div>
+      Canny Edges
     </div>
   </div>
-  <div class="pill"><div class="dot"></div><span>Online · YOLOv8l</span></div>
-</header>
 
-<!-- Pipeline steps -->
-<div class="steps">
-  <div class="step active" id="s1"><div class="step-n">1</div>Input Gambar</div>
-  <span class="step-arrow">›</span>
-  <div class="step" id="s2"><div class="step-n">2</div>Klasifikasi YOLO</div>
-  <span class="step-arrow">›</span>
-  <div class="step" id="s3"><div class="step-n">3</div>Canny Edges</div>
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT: Input Gambar -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Input Gambar</span>
+      </div>
+      <div class="dropzone" id="dropzone"
+           onclick="dropzoneClick()"
+           ondragover="onDragOver(event)"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event)">
+        <div class="dropzone-inner" id="dropzoneInner">
+          <div class="dropzone-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <span class="dropzone-primary">Klik atau seret gambar ke sini</span>
+          <span class="dropzone-hint">JPEG · PNG · WEBP · maks 5 MB</span>
+        </div>
+        <div class="dropzone-preview" id="previewWrap">
+          <img id="previewImg" alt="preview">
+          <button class="btn-remove" id="btnRemove" onclick="removeImage(event)" aria-label="Hapus gambar">&times;</button>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="openCamera()">
+          <i class="ti ti-camera" style="font-size:14px" aria-hidden="true"></i> Kamera
+        </button>
+        <button class="btn btn-filled" onclick="triggerUpload()">
+          <i class="ti ti-upload" style="font-size:14px" aria-hidden="true"></i> Upload
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Canny Edges -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Canny Edges</span>
+        <span class="chip" id="cannyChip">menunggu...</span>
+      </div>
+      <div class="canny-empty" id="cannyEmpty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        <span class="canny-empty-text">Hasil deteksi tepi akan muncul di sini</span>
+      </div>
+      <div class="canny-result" id="cannyResult">
+        <div class="canny-canvas-wrap">
+          <canvas id="cannyCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LOG PANEL -->
+  <div class="log-panel">
+    <div class="log-header">
+      <div class="log-header-left">
+        <div class="log-dot"></div>
+        <span class="log-title">Activity Log</span>
+      </div>
+      <div class="log-header-right">
+        <div class="toggle-wrap" onclick="toggleAutoScroll()">
+          <span class="toggle-label">auto-scroll</span>
+          <div class="toggle-pill on" id="togglePill">
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        <button class="btn-clear" onclick="clearLog()">clear</button>
+      </div>
+    </div>
+    <div class="log-body" id="logBody" role="log" aria-live="polite"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    ClothBot Inference API v2.0 · YOLOv8l-cls · Folding Planner v3.2
+  </footer>
+
 </div>
 
-<!-- Main -->
-<main class="main">
-
-  <div class="grid-2" id="mainGrid">
-
-    <!-- Panel 1: Input -->
-    <div class="card" id="inputCard">
-      <div class="card-hdr">
-        <span class="card-title">Input Gambar</span>
-        <span id="sizeTag" style="font-size:.68rem;color:var(--text-dim)"></span>
-      </div>
-      <div class="card-body">
-        <div id="dropZone" class="drop-zone" onclick="document.getElementById('upFile').click()">
-          <svg width="38" height="38" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5M12 3v12m0 0l-3-3m3 3l3-3"/>
-          </svg>
-          <span>Klik atau seret gambar ke sini</span>
-          <small>JPEG · PNG · WEBP · maks 5 MB</small>
-        </div>
-        <img id="prevImg" alt="preview">
-
-        <div class="btn-row">
-          <button class="btn" onclick="openCam()">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
-            Kamera
-          </button>
-          <button class="btn" onclick="document.getElementById('upFile').click()">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
-            Upload
-          </button>
-        </div>
-        <button class="btn-classify" id="btnGo" onclick="classify()">Klasifikasi Sekarang</button>
-        <div class="err-msg" id="errMsg"></div>
-      </div>
-    </div>
-
-    <!-- Panel 2: Canny Edges (hidden until classify) -->
-    <div class="card" id="cannyCard" style="display:none">
-      <div class="card-hdr">
-        <span class="card-title">Canny Edges</span>
-        <span class="tag tag-blue">edge</span>
-      </div>
-      <div class="card-body" style="padding:12px">
-        <img id="cannyImg" alt="canny" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r-sm);display:block">
-      </div>
-    </div>
-
-    <!-- Panel 3: YOLO result -->
-    <div class="card">
-      <div class="card-hdr">
-        <span class="card-title">Hasil YOLO</span>
-        <span class="tag" id="confTag"></span>
-      </div>
-      <div class="card-body">
-
-        <div id="yoloEmpty" class="empty">
-          <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
-          </svg>
-          <span>Hasil prediksi akan muncul di sini</span>
-        </div>
-
-        <div id="yoloRes" style="display:none">
-          <div class="label-big" id="predLabel"></div>
-
-          <!-- Gauge -->
-          <div class="gauge-wrap">
-            <div class="gauge-inner">
-              <svg class="gauge-svg" width="110" height="110" viewBox="0 0 110 110">
-                <circle class="g-bg" cx="55" cy="55" r="46" stroke-width="9"/>
-                <circle class="g-fg" id="gArc" cx="55" cy="55" r="46" stroke-width="9"
-                  stroke="url(#gg)" stroke-dasharray="289" stroke-dashoffset="289"/>
-                <defs>
-                  <linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#6366f1"/>
-                    <stop offset="100%" stop-color="#22d3ee"/>
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div class="gauge-txt">
-                <span class="gauge-pct" id="gaugePct">0%</span>
-                <span class="gauge-lbl">conf</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Probability bars -->
-          <div class="sec-label">Probabilitas Per Kelas</div>
-          <div id="probBars"></div>
-
-          <div class="timing" id="timingRow"></div>
-        </div>
-
-        <div class="spinner" id="spinner"></div>
-
-      </div>
-    </div>
-
-  </div><!-- /.grid -->
-
-</main>
-
-<footer class="ftr">ClothBot Inference API v2.0 · YOLOv8l-cls + Folding Planner v3.2</footer>
-
-<input type="file" id="upFile"  accept="image/*"                  onchange="loadFile(event)">
-<input type="file" id="camFile" accept="image/*" capture="environment" onchange="loadFile(event)">
+<input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" aria-hidden="true" onchange="onFileChange(event)">
+<canvas id="offscreen" style="display:none"></canvas>
 
 <script>
-const LABELS = {
-  baju_lengan_panjang: 'Baju Lengan Panjang',
-  baju_lengan_pendek:  'Baju Lengan Pendek',
-  celana_panjang:      'Celana Panjang',
-  celana_pendek:       'Celana Pendek',
-  null:                'Bukan Pakaian'
-};
+// ── State ───────────────────────────────────────────────────────
+let currentFile = null;
+let autoScroll  = true;
 
-let file = null;
-
-function step(n) {
-  [1,2,3].forEach(i => {
-    const el = document.getElementById('s'+i);
-    el.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
-  });
+// ── Helpers ─────────────────────────────────────────────────────
+function nowStr() {
+  const d = new Date();
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(n => String(n).padStart(2, '0')).join(':');
 }
 
-function openCam() { document.getElementById('camFile').click(); }
+function log(type, msg) {
+  const body  = document.getElementById('logBody');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML =
+    `<span class="log-ts">[${nowStr()}]</span>` +
+    `<span class="log-tag ${type}">[${type.toUpperCase()}]</span>` +
+    `<span class="log-msg">${msg}</span>`;
+  body.appendChild(entry);
+  if (autoScroll) body.scrollTop = body.scrollHeight;
+}
 
-function loadFile(e) {
+function clearLog() {
+  document.getElementById('logBody').innerHTML = '';
+  log('info', 'Log dibersihkan');
+}
+
+function toggleAutoScroll() {
+  autoScroll = !autoScroll;
+  document.getElementById('togglePill').classList.toggle('on', autoScroll);
+}
+
+// ── Step state machine ───────────────────────────────────────────
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const s = document.getElementById('step' + i);
+    const c = document.getElementById('sc' + i);
+    s.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+    c.textContent = i < n ? '\u2713' : String(i);
+  }
+  for (let i = 1; i <= 2; i++) {
+    document.getElementById('sl' + i).classList.toggle('done', i < n);
+  }
+}
+
+// ── File handling ────────────────────────────────────────────────
+const fileInput = document.getElementById('fileInput');
+
+function triggerUpload() { fileInput.click(); }
+
+function dropzoneClick() {
+  if (currentFile) return;
+  fileInput.click();
+}
+
+function onFileChange(e) {
   const f = e.target.files[0];
-  if (!f) return;
-  file = f;
-  const prev = document.getElementById('prevImg');
-  prev.src = URL.createObjectURL(f);
-  prev.style.display = 'block';
-  document.getElementById('dropZone').style.display = 'none';
-  document.getElementById('btnGo').style.display = 'block';
-  document.getElementById('sizeTag').textContent = (f.size / 1024).toFixed(0) + ' KB';
-  document.getElementById('yoloEmpty').style.display = 'flex';
-  document.getElementById('yoloRes').style.display   = 'none';
-  document.getElementById('cannyCard').style.display  = 'none';
-  document.getElementById('mainGrid').className       = 'grid-2';
-  document.getElementById('errMsg').style.display    = 'none';
-  document.getElementById('confTag').textContent     = '';
-  step(1);
+  if (f) handleFile(f);
   e.target.value = '';
 }
 
-async function classify() {
-  if (!file) return;
-  const btn = document.getElementById('btnGo');
-  btn.disabled = true;
-  btn.textContent = 'Memproses…';
-  document.getElementById('spinner').style.display  = 'block';
-  document.getElementById('yoloEmpty').style.display = 'none';
-  document.getElementById('yoloRes').style.display   = 'none';
-  document.getElementById('cannyCard').style.display  = 'none';
-  document.getElementById('mainGrid').className       = 'grid-2';
-  document.getElementById('errMsg').style.display    = 'none';
-  step(2);
+function handleFile(f) {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(f.type)) {
+    log('error', 'Format tidak didukung. Gunakan JPEG, PNG, atau WEBP');
+    return;
+  }
+  if (f.size > 5 * 1024 * 1024) {
+    log('warn', 'Ukuran file melebihi 5 MB');
+    return;
+  }
+  currentFile = f;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('previewImg').src = ev.target.result;
+    document.getElementById('previewWrap').classList.add('show');
+    document.getElementById('dropzoneInner').style.visibility = 'hidden';
+    document.getElementById('dropzone').style.cursor = 'default';
+  };
+  reader.readAsDataURL(f);
+  log('info', `Gambar dimuat: ${f.name} (${(f.size/1024).toFixed(0)} KB)`);
+  setStep(2);
+  runPipeline(f);
+}
 
+function removeImage(e) {
+  e.stopPropagation();
+  currentFile = null;
+  document.getElementById('previewImg').src = '';
+  document.getElementById('previewWrap').classList.remove('show');
+  document.getElementById('dropzoneInner').style.visibility = '';
+  document.getElementById('dropzone').style.cursor = 'pointer';
+  document.getElementById('cannyEmpty').style.display  = '';
+  document.getElementById('cannyResult').style.display = 'none';
+  document.getElementById('cannyChip').textContent     = 'menunggu...';
+  log('warn', 'Gambar dihapus. Menunggu input baru...');
+  setStep(1);
+}
+
+// ── Drag & Drop ──────────────────────────────────────────────────
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.add('drag-over');
+}
+function onDragLeave() {
+  document.getElementById('dropzone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+}
+
+// ── Camera ───────────────────────────────────────────────────────
+function openCamera() {
+  if (!navigator.mediaDevices) {
+    log('warn', 'Akses kamera belum tersedia di browser ini');
+    return;
+  }
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
+  inp.onchange = e => { const f = e.target.files[0]; if (f) handleFile(f); };
+  inp.click();
+}
+
+// ── Pipeline ─────────────────────────────────────────────────────
+async function runPipeline(file) {
+  log('info', 'Mengirim ke inference API...');
+  const fd = new FormData();
+  fd.append('image', file, file.name || 'photo.jpg');
   try {
-    const fd = new FormData();
-    fd.append('image', file, file.name || 'photo.jpg');
     const res  = await fetch('/predict', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || res.statusText);
-
-    renderYOLO(data);
-    if (data.fold && data.fold.canny_image) {
-      renderCanny(data.fold);
-      step(3);
-    } else {
-      step(2);
+    log('success', 'Klasifikasi selesai');
+    if (data.predicted_class != null && data.confidence != null) {
+      const conf = (data.confidence * 100).toFixed(1);
+      log('info', `Terdeteksi: ${data.predicted_class} (${conf}%)`);
     }
   } catch (err) {
-    const el = document.getElementById('errMsg');
-    el.textContent = 'Error: ' + err.message;
-    el.style.display = 'block';
-    step(1);
-  } finally {
-    document.getElementById('spinner').style.display = 'none';
-    btn.disabled = false;
-    btn.textContent = 'Klasifikasi Sekarang';
+    log('warn', 'API tidak terjangkau — berjalan dalam mode demo');
   }
+  log('info', 'Menjalankan Canny edge detection...');
+  runCanny(file);
 }
 
-function renderYOLO(d) {
-  const label = LABELS[d.predicted_class] || d.predicted_class;
-  const conf  = (d.confidence * 100).toFixed(1);
-
-  document.getElementById('predLabel').textContent = label;
-
-  // Confidence tag
-  const tag = document.getElementById('confTag');
-  if (d.is_confident) {
-    tag.textContent = '✓ Confident';
-    tag.className   = 'tag tag-green';
-  } else {
-    tag.textContent = '⚠ Low';
-    tag.className   = 'tag tag-orange';
+// ── Canny (browser) ──────────────────────────────────────────────
+function convolve5(src, W, H) {
+  const k   = [2,4,5,4,2, 4,9,12,9,4, 5,12,15,12,5, 4,9,12,9,4, 2,4,5,4,2];
+  const dst = new Float32Array(W * H);
+  for (let y = 2; y < H-2; y++) {
+    for (let x = 2; x < W-2; x++) {
+      let s = 0;
+      for (let ky = 0; ky < 5; ky++)
+        for (let kx = 0; kx < 5; kx++)
+          s += k[ky*5+kx] * src[(y+ky-2)*W + (x+kx-2)];
+      dst[y*W+x] = s / 159;
+    }
   }
-
-  // Gauge arc  (circumference = 2π×46 ≈ 289)
-  const circ  = 289;
-  const arc   = document.getElementById('gArc');
-  arc.style.strokeDashoffset = circ * (1 - d.confidence);
-  arc.style.stroke = d.is_confident ? 'url(#gg)' : '#f59e0b';
-  document.getElementById('gaugePct').textContent = conf + '%';
-
-  // Probability bars
-  const bars  = document.getElementById('probBars');
-  const sorted = Object.entries(d.probabilities).sort((a,b) => b[1]-a[1]);
-  bars.innerHTML = sorted.map(([cls, p]) => {
-    const pct   = (p * 100).toFixed(1);
-    const isTop = cls === d.predicted_class;
-    return `<div class="bar-row">
-      <div class="bar-name">${LABELS[cls]||cls}</div>
-      <div class="bar-track"><div class="bar-fill${isTop?' hi':''}" style="width:${pct}%"></div></div>
-      <div class="bar-pct">${pct}%</div>
-    </div>`;
-  }).join('');
-
-  // Timing
-  const t = document.getElementById('timingRow');
-  const parts = [];
-  if (d.inference_time_ms != null) parts.push(`<span>⚡ YOLO ${d.inference_time_ms.toFixed(0)} ms</span>`);
-  if (d.fold_time_ms      != null) parts.push(`<span>🔍 Fold ${d.fold_time_ms.toFixed(0)} ms</span>`);
-  if (d.mqtt_published !== undefined)
-    parts.push(`<span>📡 MQTT ${d.mqtt_published ? '✓' : '—'}</span>`);
-  t.innerHTML = parts.join('');
-
-  document.getElementById('yoloEmpty').style.display = 'none';
-  document.getElementById('yoloRes').style.display   = 'block';
+  return dst;
 }
 
-function renderCanny(fold) {
-  document.getElementById('cannyImg').src = 'data:image/png;base64,' + fold.canny_image;
-  document.getElementById('cannyCard').style.display = 'block';
-  document.getElementById('mainGrid').className      = 'grid-3';
+function runCanny(file) {
+  const img = new Image();
+  img.onload = () => {
+    const off = document.getElementById('offscreen');
+    off.width  = img.naturalWidth;
+    off.height = img.naturalHeight;
+    const ctx = off.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const W = off.width, H = off.height;
+    const px = ctx.getImageData(0, 0, W, H).data;
+
+    // Grayscale
+    const gray = new Float32Array(W * H);
+    for (let i = 0; i < W * H; i++)
+      gray[i] = 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
+
+    // Gaussian blur
+    const blr = convolve5(gray, W, H);
+
+    // Sobel
+    const GXk = [-1,0,1,-2,0,2,-1,0,1];
+    const GYk = [-1,-2,-1,0,0,0,1,2,1];
+    const mag = new Float32Array(W * H);
+    const ang = new Float32Array(W * H);
+    for (let y = 1; y < H-1; y++) {
+      for (let x = 1; x < W-1; x++) {
+        let gx = 0, gy = 0;
+        for (let ky = -1; ky <= 1; ky++)
+          for (let kx = -1; kx <= 1; kx++) {
+            const v = blr[(y+ky)*W+(x+kx)];
+            gx += GXk[(ky+1)*3+(kx+1)] * v;
+            gy += GYk[(ky+1)*3+(kx+1)] * v;
+          }
+        const i = y*W+x;
+        mag[i] = Math.sqrt(gx*gx + gy*gy);
+        ang[i] = Math.atan2(gy, gx) * 180 / Math.PI;
+      }
+    }
+
+    // Non-max suppression
+    const nms = new Float32Array(W * H);
+    for (let y = 1; y < H-1; y++) {
+      for (let x = 1; x < W-1; x++) {
+        const i = y*W+x, m = mag[i];
+        let a = ang[i]; if (a < 0) a += 180;
+        let n1, n2;
+        if      (a < 22.5  || a >= 157.5) { n1 = mag[y*W+x+1];     n2 = mag[y*W+x-1]; }
+        else if (a < 67.5)                 { n1 = mag[(y+1)*W+x-1]; n2 = mag[(y-1)*W+x+1]; }
+        else if (a < 112.5)                { n1 = mag[(y+1)*W+x];   n2 = mag[(y-1)*W+x]; }
+        else                               { n1 = mag[(y-1)*W+x-1]; n2 = mag[(y+1)*W+x+1]; }
+        nms[i] = (m >= n1 && m >= n2) ? m : 0;
+      }
+    }
+
+    // Double threshold
+    let maxM = 0;
+    for (let i = 0; i < nms.length; i++) if (nms[i] > maxM) maxM = nms[i];
+    const lo = maxM * 0.08, hi = maxM * 0.22;
+    const STRONG = 255, WEAK = 128;
+    const edge = new Uint8Array(W * H);
+    for (let i = 0; i < nms.length; i++) {
+      if      (nms[i] >= hi) edge[i] = STRONG;
+      else if (nms[i] >= lo) edge[i] = WEAK;
+    }
+
+    // Hysteresis
+    function trace(y0, x0) {
+      const stk = [[y0, x0]];
+      while (stk.length) {
+        const [cy, cx] = stk.pop();
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dy && !dx) continue;
+            const ny = cy+dy, nx = cx+dx;
+            if (ny < 0 || ny >= H || nx < 0 || nx >= W) continue;
+            const ni = ny*W+nx;
+            if (edge[ni] === WEAK) { edge[ni] = STRONG; stk.push([ny, nx]); }
+          }
+      }
+    }
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++)
+        if (edge[y*W+x] === STRONG) trace(y, x);
+    for (let i = 0; i < edge.length; i++) if (edge[i] !== STRONG) edge[i] = 0;
+
+    // Render
+    const cv  = document.getElementById('cannyCanvas');
+    cv.width  = W; cv.height = H;
+    const out = cv.getContext('2d');
+    const od  = out.createImageData(W, H);
+    for (let i = 0; i < W*H; i++) {
+      const v = edge[i];
+      od.data[i*4]=v; od.data[i*4+1]=v; od.data[i*4+2]=v; od.data[i*4+3]=255;
+    }
+    out.putImageData(od, 0, 0);
+
+    document.getElementById('cannyEmpty').style.display  = 'none';
+    document.getElementById('cannyResult').style.display = 'block';
+    document.getElementById('cannyChip').textContent     = 'live preview';
+    log('success', `Canny edge detection selesai \u2192 ${file.name || 'image'}`);
+    setStep(3);
+  };
+  img.src = URL.createObjectURL(file);
 }
+
+// ── Boot log ─────────────────────────────────────────────────────
+setTimeout(() => log('info',    'ClothBot v2.0 initialized'),       100);
+setTimeout(() => log('info',    'Model YOLOv8l-cls loaded'),        400);
+setTimeout(() => log('info',    'Folding Planner v3.2 ready'),      700);
+setTimeout(() => log('info',    'Menunggu input gambar...'),       1000);
 </script>
 </body>
 </html>
