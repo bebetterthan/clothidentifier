@@ -36,10 +36,10 @@ const char* WIFI_SSID     = "DORA";
 const char* WIFI_PASSWORD = "peler321";
 
 // ── MQTT broker ────────────────────────────────────────────────────────────
-const char* MQTT_HOST  = "45.58.169.16";
+const char* MQTT_HOST  = "45.58.168.24";
 const int   MQTT_PORT  = 1883;
 const char* MQTT_USER  = "clothbot";
-const char* MQTT_PASS  = nullptr;  // set to "password" if broker requires auth
+const char* MQTT_PASS  = "clothbot123";  // password broker
 const char* MQTT_TOPIC = "clothbot/servo/command";
 
 // ── PCA9685 servo calibration ─────────────────────────────────────────────

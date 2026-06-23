@@ -75,7 +75,7 @@ SERVO_MAP: dict[str, LabelMapping] = {
             # Step 4 — CH0 balik home
             {"servos": [{"ch": 0, "angle": 0}], "delay_ms": 600},
             # Step 5 — fold badan bawah
-            {"servos": [{"ch": 2, "angle": 90}, {"ch": 3, "angle": 90}], "delay_ms": 600},
+            {"servos": [{"ch": 2, "angle": 180}, {"ch": 3, "angle": 180}], "delay_ms": 600},
             # Step 6 — semua ke home
             {"servos": _HOME, "delay_ms": 400},
         ]
@@ -92,7 +92,7 @@ SERVO_MAP: dict[str, LabelMapping] = {
             # Step 4 — CH0 balik home
             {"servos": [{"ch": 0, "angle": 0}], "delay_ms": 600},
             # Step 5 — fold badan bawah
-            {"servos": [{"ch": 2, "angle": 90}, {"ch": 3, "angle": 90}], "delay_ms": 600},
+            {"servos": [{"ch": 2, "angle": 180}, {"ch": 3, "angle": 180}], "delay_ms": 600},
             # Step 6 — semua ke home
             {"servos": _HOME, "delay_ms": 400},
         ]
@@ -100,34 +100,38 @@ SERVO_MAP: dict[str, LabelMapping] = {
 
     "celana_panjang": {
         "steps": [
-            # Step 1 — fold kaki (legs first)
-            {"servos": [{"ch": 2, "angle": 90}, {"ch": 3, "angle": 90}], "delay_ms": 700},
-            # Step 2 — fold sisi kanan (CH1)
+            # Step 1 — fold sisi kanan (CH1)
             {"servos": [{"ch": 1, "angle": 180}], "delay_ms": 600},
-            # Step 3 — CH1 balik home, jeda 5 detik (beri waktu arus stabil)
+            # Step 2 — CH1 balik home, jeda 5 detik
             {"servos": [{"ch": 1, "angle": 0}], "delay_ms": 5000},
-            # Step 4 — fold sisi kiri (CH0)
+            # Step 3 — fold sisi kiri (CH0)
             {"servos": [{"ch": 0, "angle": 180}], "delay_ms": 600},
-            # Step 5 — CH0 balik home
+            # Step 4 — CH0 balik home
             {"servos": [{"ch": 0, "angle": 0}], "delay_ms": 600},
-            # Step 6 — semua ke home
+            # Step 5 — fold kaki bawah (CH3) terlebih dahulu
+            {"servos": [{"ch": 3, "angle": 180}], "delay_ms": 2000},
+            # Step 6 — fold kaki atas (CH2) setelah jeda 2 detik
+            {"servos": [{"ch": 2, "angle": 180}], "delay_ms": 700},
+            # Step 7 — semua ke home
             {"servos": _HOME, "delay_ms": 400},
         ]
     },
 
     "celana_pendek": {
         "steps": [
-            # Step 1 — fold kaki (shorter → smaller angle)
-            {"servos": [{"ch": 2, "angle": 60}, {"ch": 3, "angle": 60}], "delay_ms": 700},
-            # Step 2 — fold sisi kanan (CH1)
+            # Step 1 — fold sisi kanan (CH1)
             {"servos": [{"ch": 1, "angle": 180}], "delay_ms": 600},
-            # Step 3 — CH1 balik home, jeda 5 detik (beri waktu arus stabil)
+            # Step 2 — CH1 balik home, jeda 5 detik
             {"servos": [{"ch": 1, "angle": 0}], "delay_ms": 5000},
-            # Step 4 — fold sisi kiri (CH0)
+            # Step 3 — fold sisi kiri (CH0)
             {"servos": [{"ch": 0, "angle": 180}], "delay_ms": 600},
-            # Step 5 — CH0 balik home
+            # Step 4 — CH0 balik home
             {"servos": [{"ch": 0, "angle": 0}], "delay_ms": 600},
-            # Step 6 — semua ke home
+            # Step 5 — fold kaki bawah (CH3) terlebih dahulu
+            {"servos": [{"ch": 3, "angle": 180}], "delay_ms": 2000},
+            # Step 6 — fold kaki atas (CH2) setelah jeda 2 detik
+            {"servos": [{"ch": 2, "angle": 180}], "delay_ms": 700},
+            # Step 7 — semua ke home
             {"servos": _HOME, "delay_ms": 400},
         ]
     },

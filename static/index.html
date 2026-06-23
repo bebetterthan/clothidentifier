@@ -1,736 +1,3007 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClothBot — Clothing Classifier</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@800&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Cloth Folder — Panduan Melipat Pakaian</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;600&display=swap"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"
+        />
+        <style>
+            /* ── Design tokens ───────────────────────────────────────────── */
+            :root {
+                --primary: #1d9e75;
+                --primary-lite: #e1f5ee;
+                --primary-mid: #5dcaa5;
+                --primary-dk: #158c64;
+                --accent: #ba7517;
+                --accent-lite: #faeeda;
+                --success: #4caf7d;
+                --warn: #d4882a;
+                --danger: #d94f4f;
+                --surface: #f7f6f3;
+                --card: #ffffff;
+                --border: #e4e0da;
+                --border-base: #e4e0db;
+                --ink: #1c1c1a;
+                --ink2: #5c5b57;
+                --ink3: #9b9a96;
+                --term-bg: #111111;
+                --term-border: rgba(255, 255, 255, 0.07);
+                --radius-sm: 8px;
+                --radius: 12px;
+                --radius-lg: 16px;
+                --shadow:
+                    0 1px 3px rgba(29, 158, 117, 0.08),
+                    0 1px 2px rgba(0, 0, 0, 0.04);
+                --shadow-md: 0 4px 16px rgba(29, 158, 117, 0.12);
+                --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+            }
 
-:root {
-  --ink:         #0F1923;
-  --ink2:        #4A5568;
-  --ink3:        #A0AEC0;
-  --teal:        #0D7377;
-  --teal-lite:   #E6F5F5;
-  --teal-mid:    #5BBCC0;
-  --amber:       #E07B39;
-  --amber-lite:  #FEF3EB;
-  --surface:     #FAFBFC;
-  --card:        #FFFFFF;
-  --border:      #E8EDF2;
-  --term-bg:     #0F1923;
-  --term-border: #1E2D3D;
-}
+            /* ── Reset ───────────────────────────────────────────────────── */
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+                font-family: "Plus Jakarta Sans", sans-serif;
+                background: var(--surface);
+                color: var(--ink);
+                min-height: 100vh;
+                font-size: 15px;
+                line-height: 1.55;
+                -webkit-font-smoothing: antialiased;
+            }
 
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--surface);
-  color: var(--ink);
-  min-height: 100vh;
-  font-size: 14px;
-}
+            *:focus-visible {
+                outline: 2px solid var(--primary);
+                outline-offset: 3px;
+            }
+            img {
+                display: block;
+                max-width: 100%;
+            }
 
-*:focus-visible {
-  outline: 2px solid var(--teal);
-  outline-offset: 2px;
-}
+            /* ── Wrapper ─────────────────────────────────────────────────── */
+            .wrapper {
+                max-width: 640px;
+                margin: 0 auto;
+                padding: 1.5rem 1.25rem 3.5rem;
+            }
 
-.wrapper {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 1.5rem 1.25rem;
-}
+            /* ── Header ──────────────────────────────────────────────────── */
+            header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding-bottom: 1.5rem;
+                margin-bottom: 1.75rem;
+                border-bottom: 1px solid var(--border);
+            }
 
-/* ── HEADER ── */
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 1.5rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid var(--border);
-}
-.brand { display: flex; align-items: center; gap: 11px; }
-.brand-icon {
-  width: 36px; height: 36px;
-  background: var(--teal);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; color: white;
-}
-.brand-text { display: flex; flex-direction: column; gap: 2px; }
-.brand-name {
-  font-family: 'Syne', sans-serif;
-  font-weight: 800; font-size: 18px;
-  color: var(--ink); letter-spacing: -0.3px; line-height: 1;
-}
-.brand-sub { font-size: 11px; color: var(--ink3); font-weight: 400; }
-.status-badge {
-  display: flex; align-items: center; gap: 7px;
-  padding: 5px 12px;
-  border: 1px solid var(--border); border-radius: 20px;
-  font-size: 12px; color: var(--ink2);
-}
-.pulse-dot {
-  position: relative; width: 7px; height: 7px;
-  border-radius: 50%; background: #22C55E; flex-shrink: 0;
-}
-.pulse-dot::after {
-  content: ''; position: absolute; inset: 0;
-  border-radius: 50%; background: #22C55E;
-  animation: ping 1.5s ease-out infinite;
-}
-@keyframes ping {
-  0%   { transform: scale(1); opacity: .8; }
-  100% { transform: scale(2.2); opacity: 0; }
-}
+            .brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
 
-/* ── STEP INDICATOR ── */
-.steps {
-  display: flex; align-items: center;
-  margin-bottom: 1.75rem;
-}
-.step {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 500;
-  color: var(--ink3); white-space: nowrap;
-}
-.step-circle {
-  width: 22px; height: 22px; border-radius: 50%;
-  border: 1.5px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: var(--ink3);
-  flex-shrink: 0; transition: all 200ms ease;
-}
-.step.active .step-circle { background: var(--teal); border-color: var(--teal); color: white; }
-.step.done   .step-circle { background: var(--teal-lite); border-color: var(--teal); color: var(--teal); }
-.step.active { color: var(--ink); }
-.step.done   { color: var(--teal); }
-.step-line {
-  flex: 1; height: 1px; background: var(--border);
-  margin: 0 8px; min-width: 20px;
-  transition: background 200ms ease;
-}
-.step-line.done { background: var(--teal); }
+            .brand-icon {
+                width: 44px;
+                height: 44px;
+                background: linear-gradient(
+                    135deg,
+                    var(--primary) 0%,
+                    var(--primary-dk) 100%
+                );
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 22px;
+                flex-shrink: 0;
+                box-shadow: 0 4px 14px rgba(29, 158, 117, 0.35);
+            }
 
-/* ── MAIN GRID ── */
-.main-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 1rem; margin-bottom: 1rem;
-}
+            .brand-name {
+                font-size: 20px;
+                font-weight: 800;
+                color: var(--ink);
+                letter-spacing: -0.5px;
+                line-height: 1.1;
+            }
 
-/* ── CARD ── */
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px; overflow: hidden;
-  transition: transform 200ms ease, box-shadow 200ms ease;
-}
-.card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(13,115,119,.08);
-}
-.card-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.card-title {
-  font-size: 12px; font-weight: 500; color: var(--ink2);
-  text-transform: uppercase; letter-spacing: 0.6px;
-}
+            .brand-sub {
+                font-size: 12px;
+                color: var(--ink3);
+                margin-top: 2px;
+            }
 
-/* ── INPUT CARD ── */
-.dropzone {
-  margin: 16px;
-  border: 1.5px dashed var(--border); border-radius: 8px;
-  min-height: 180px; position: relative;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 8px; cursor: pointer; overflow: hidden;
-  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
-}
-.dropzone:hover, .dropzone.drag-over {
-  border-color: var(--teal); background: var(--teal-lite);
-}
-.dropzone.drag-over { transform: scale(1.02); }
-.dropzone-inner {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 8px; padding: 20px;
-}
-.dropzone-icon { color: var(--ink3); }
-.dropzone-primary { font-size: 13px; font-weight: 500; color: var(--ink2); text-align: center; }
-.dropzone-hint    { font-size: 11px; color: var(--ink3); text-align: center; }
-.dropzone-preview {
-  position: absolute; inset: 0; display: none;
-}
-.dropzone-preview.show { display: block; }
-.dropzone-preview img {
-  width: 100%; height: 100%; object-fit: cover;
-  border-radius: 6px; display: block;
-}
-.btn-remove {
-  position: absolute; top: 7px; right: 7px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: rgba(15,25,35,.7); border: none;
-  color: white; font-size: 14px; line-height: 1;
-  cursor: pointer; display: flex;
-  align-items: center; justify-content: center;
-  z-index: 2; transition: background 180ms ease;
-}
-.btn-remove:hover { background: rgba(15,25,35,.92); }
+            .status-pill {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--ink2);
+                padding: 5px 13px;
+                border-radius: 20px;
+                border: 1px solid var(--border-base);
+                background: var(--card);
+                box-shadow: var(--shadow);
+                white-space: nowrap;
+            }
 
-.btn-row {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 8px; padding: 0 16px 16px;
-}
-.btn {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px; font-weight: 500;
-  padding: 8px 12px; border-radius: 7px;
-  cursor: pointer; transition: all 180ms ease;
-}
-.btn:active { transform: scale(0.97); }
-.btn-outline {
-  border: 1px solid var(--teal); color: var(--teal); background: transparent;
-}
-.btn-outline:hover { background: var(--teal-lite); }
-.btn-filled {
-  border: 1px solid var(--teal); color: white; background: var(--teal);
-}
-.btn-filled:hover { background: #0A5E62; border-color: #0A5E62; }
+            .dot-live {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: var(--success);
+                flex-shrink: 0;
+                transition: background 400ms ease;
+            }
+            .dot-live.pulse {
+                animation: dot-pulse 2s ease-in-out infinite;
+            }
+            @keyframes dot-pulse {
+                0%,
+                100% {
+                    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+                }
+                50% {
+                    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+                }
+            }
 
-/* ── CANNY CARD ── */
-.chip {
-  font-size: 10px; font-weight: 500;
-  padding: 2px 8px; border-radius: 10px;
-  background: var(--teal-lite); color: var(--teal);
-}
-.canny-empty {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 40px 20px; gap: 10px; color: var(--ink3);
-}
-.canny-empty svg { opacity: .5; }
-.canny-empty-text { font-size: 13px; text-align: center; }
-.canny-result { display: none; }
-.canny-canvas-wrap {
-  background: #000; margin: 12px;
-  border-radius: 7px; overflow: hidden;
-}
-.canny-canvas-wrap canvas {
-  display: block; width: 100%; border-radius: 7px;
-}
+            /* ── Step Indicator ──────────────────────────────────────────── */
+            .steps {
+                display: flex;
+                align-items: center;
+                margin-bottom: 1.75rem;
+            }
 
-/* ── LOG PANEL ── */
-.log-panel {
-  background: var(--term-bg);
-  border: 1px solid var(--term-border);
-  border-radius: 10px; overflow: hidden;
-  margin-bottom: 1rem;
-}
-.log-header {
-  padding: 10px 14px; border-bottom: 1px solid var(--term-border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.log-header-left  { display: flex; align-items: center; gap: 8px; }
-.log-header-right { display: flex; align-items: center; gap: 8px; }
-.log-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--teal-mid);
-  box-shadow: 0 0 6px var(--teal-mid); flex-shrink: 0;
-}
-.log-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px; font-weight: 500; color: #CBD5E1;
-}
-.toggle-wrap {
-  display: flex; align-items: center; gap: 6px;
-  cursor: pointer; user-select: none;
-}
-.toggle-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; color: #64748B;
-}
-.toggle-pill {
-  position: relative; width: 22px; height: 12px;
-  background: #1E2D3D; border-radius: 6px;
-  transition: background 200ms ease; flex-shrink: 0;
-}
-.toggle-pill.on { background: var(--teal); }
-.toggle-knob {
-  position: absolute; top: 2.5px; left: 2.5px;
-  width: 7px; height: 7px; border-radius: 50%;
-  background: white; transition: transform 200ms ease;
-}
-.toggle-pill.on .toggle-knob { transform: translateX(10px); }
-.btn-clear {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; color: #64748B;
-  background: transparent;
-  border: 1px solid var(--term-border); border-radius: 4px;
-  padding: 3px 9px; cursor: pointer;
-  transition: border-color 200ms, color 200ms;
-}
-.btn-clear:hover { border-color: #334155; color: #94A3B8; }
-.log-body {
-  height: 180px; overflow-y: scroll; padding: 8px 0;
-  scrollbar-width: thin; scrollbar-color: #1E2D3D transparent;
-}
-.log-body::-webkit-scrollbar { width: 3px; }
-.log-body::-webkit-scrollbar-track { background: transparent; }
-.log-body::-webkit-scrollbar-thumb { background: #1E2D3D; border-radius: 2px; }
-.log-entry {
-  display: flex; align-items: flex-start;
-  padding: 3px 14px; gap: 8px;
-  animation: fadeup 150ms ease forwards;
-}
-@keyframes fadeup {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.log-ts {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; color: #334155;
-  flex-shrink: 0; margin-top: 0.5px;
-}
-.log-tag {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; font-weight: 500;
-  padding: 0 5px; border-radius: 3px;
-  flex-shrink: 0; margin-top: 0.5px;
-}
-.log-tag.info    { color: #60A5FA; background: rgba(96,165,250,.1); }
-.log-tag.success { color: #34D399; background: rgba(52,211,153,.1); }
-.log-tag.warn    { color: #FBBF24; background: rgba(251,191,36,.1); }
-.log-tag.error   { color: #F87171; background: rgba(248,113,113,.1); }
-.log-msg {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: #94A3B8; flex: 1; line-height: 1.5;
-}
+            .step {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--ink3);
+                white-space: nowrap;
+            }
 
-/* ── FOOTER ── */
-footer {
-  text-align: center; font-size: 11px;
-  color: var(--ink3); padding-top: 1.25rem;
-}
+            .step-num {
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                border: 2px solid var(--border-base);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                font-weight: 700;
+                transition: all 250ms ease;
+                flex-shrink: 0;
+                background: var(--card);
+            }
 
-/* ── RESPONSIVE ── */
-@media (max-width: 580px) {
-  .main-grid { grid-template-columns: 1fr; }
-}
-</style>
-</head>
-<body>
-<div class="wrapper">
+            .step.active .step-num {
+                border-color: var(--primary);
+                background: var(--primary);
+                color: white;
+                box-shadow: 0 2px 8px rgba(29, 158, 117, 0.4);
+            }
+            .step.done .step-num {
+                border-color: var(--success);
+                background: var(--success);
+                color: white;
+            }
+            .step.active {
+                color: var(--ink);
+            }
+            .step.done {
+                color: var(--success);
+            }
 
-  <!-- HEADER -->
-  <header>
-    <div class="brand">
-      <div class="brand-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
-        </svg>
-      </div>
-      <div class="brand-text">
-        <span class="brand-name">ClothBot</span>
-        <span class="brand-sub">Clothing Classifier · Fold Planner</span>
-      </div>
-    </div>
-    <div class="status-badge">
-      <div class="pulse-dot"></div>
-      <span>Online · YOLOv8l</span>
-    </div>
-  </header>
+            .step-line {
+                flex: 1;
+                height: 2px;
+                background: var(--border-base);
+                margin: 0 8px;
+                min-width: 20px;
+                transition: background 350ms ease;
+                border-radius: 2px;
+            }
+            .step-line.done {
+                background: var(--success);
+            }
 
-  <!-- STEP INDICATOR -->
-  <div class="steps">
-    <div class="step active" id="step1">
-      <div class="step-circle" id="sc1">1</div>
-      Input Gambar
-    </div>
-    <div class="step-line" id="sl1"></div>
-    <div class="step" id="step2">
-      <div class="step-circle" id="sc2">2</div>
-      Klasifikasi
-    </div>
-    <div class="step-line" id="sl2"></div>
-    <div class="step" id="step3">
-      <div class="step-circle" id="sc3">3</div>
-      Canny Edges
-    </div>
-  </div>
+            /* ── Upload Card ─────────────────────────────────────────────── */
+            .card {
+                background: var(--card);
+                border: 1px solid var(--border-base);
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow);
+            }
 
-  <!-- MAIN GRID -->
-  <div class="main-grid">
+            .dropzone {
+                margin: 14px;
+                border: 2px dashed var(--border-base);
+                border-radius: var(--radius);
+                min-height: 210px;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                overflow: hidden;
+                transition: all 220ms ease;
+                background: var(--surface);
+            }
+            .dropzone:hover,
+            .dropzone.drag-over {
+                border-color: var(--primary);
+                background: var(--primary-lite);
+            }
+            .dropzone.drag-over {
+                transform: scale(1.015);
+            }
 
-    <!-- LEFT: Input Gambar -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Input Gambar</span>
-      </div>
-      <div class="dropzone" id="dropzone"
-           onclick="dropzoneClick()"
-           ondragover="onDragOver(event)"
-           ondragleave="onDragLeave(event)"
-           ondrop="onDrop(event)">
-        <div class="dropzone-inner" id="dropzoneInner">
-          <div class="dropzone-icon">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-          </div>
-          <span class="dropzone-primary">Klik atau seret gambar ke sini</span>
-          <span class="dropzone-hint">JPEG · PNG · WEBP · maks 5 MB</span>
+            .dz-inner {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+                padding: 2.25rem 2rem;
+                pointer-events: none;
+                text-align: center;
+            }
+
+            .dz-icon-wrap {
+                width: 62px;
+                height: 62px;
+                border-radius: 16px;
+                background: var(--primary-lite);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 28px;
+                color: var(--primary);
+                transition: transform 220ms ease;
+            }
+            .dropzone:hover .dz-icon-wrap {
+                transform: translateY(-3px);
+            }
+
+            .dz-title {
+                font-size: 14px;
+                font-weight: 700;
+                color: var(--ink2);
+            }
+            .dz-sub {
+                font-size: 12px;
+                color: var(--ink3);
+                margin-top: 2px;
+            }
+
+            .dz-preview {
+                position: absolute;
+                inset: 0;
+                display: none;
+            }
+            .dz-preview.show {
+                display: block;
+            }
+            .dz-preview img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .btn-rm {
+                position: absolute;
+                top: 9px;
+                right: 9px;
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                background: rgba(12, 26, 39, 0.62);
+                border: none;
+                color: white;
+                font-size: 18px;
+                line-height: 1;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 2;
+                backdrop-filter: blur(6px);
+                transition: background 180ms ease;
+            }
+            .btn-rm:hover {
+                background: rgba(12, 26, 39, 0.88);
+            }
+
+            .action-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                padding: 0 14px 14px;
+            }
+
+            .btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                font-family: inherit;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 10px 16px;
+                border-radius: var(--radius-sm);
+                cursor: pointer;
+                transition: all 150ms ease;
+                border: none;
+            }
+            .btn:active {
+                transform: scale(0.96);
+            }
+
+            .btn-outline {
+                background: var(--surface);
+                border: 1px solid var(--border-base);
+                color: var(--ink2);
+            }
+            .btn-outline:hover {
+                background: var(--border-base);
+            }
+
+            .btn-filled {
+                background: var(--primary);
+                color: white;
+                box-shadow: 0 2px 8px rgba(29, 158, 117, 0.32);
+            }
+            .btn-filled:hover {
+                background: var(--primary-dk);
+            }
+
+            /* ── Processing ──────────────────────────────────────────────── */
+            #processingSection {
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                padding: 3.5rem 1.25rem;
+                gap: 18px;
+                text-align: center;
+            }
+
+            .spinner-wrap {
+                position: relative;
+                width: 56px;
+                height: 56px;
+            }
+            .spinner-ring {
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                border: 3px solid var(--border-base);
+                border-top-color: var(--primary);
+                animation: spin 700ms linear infinite;
+            }
+            .spinner-icon {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 22px;
+                color: var(--primary);
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .proc-title {
+                font-size: 17px;
+                font-weight: 800;
+                color: var(--ink);
+                letter-spacing: -0.3px;
+            }
+            .proc-sub {
+                font-size: 13px;
+                color: var(--ink3);
+            }
+
+            .proc-steps {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+                max-width: 280px;
+            }
+            .proc-step-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 13px;
+                color: var(--ink3);
+                padding: 8px 12px;
+                border-radius: var(--radius-sm);
+                background: var(--card);
+                border: 1px solid var(--border-base);
+                transition: all 300ms ease;
+            }
+            .proc-step-item.active {
+                color: var(--primary);
+                border-color: var(--primary);
+                background: var(--primary-lite);
+            }
+            .proc-step-item.done {
+                color: var(--success);
+                border-color: rgba(16, 185, 129, 0.3);
+                background: rgba(16, 185, 129, 0.06);
+            }
+
+            /* ── Result ──────────────────────────────────────────────────── */
+            #resultSection {
+                display: none;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .result-header {
+                background: var(--card);
+                border: 1px solid var(--border-base);
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow);
+                padding: 1rem 1.25rem;
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }
+
+            .result-emoji {
+                font-size: 40px;
+                flex-shrink: 0;
+                line-height: 1;
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+            }
+
+            .result-meta {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .result-label {
+                font-size: 20px;
+                font-weight: 800;
+                color: var(--ink);
+                letter-spacing: -0.4px;
+                line-height: 1.1;
+            }
+
+            .result-sub {
+                font-size: 12px;
+                color: var(--ink3);
+                margin-top: 4px;
+            }
+
+            .conf-bar-wrap {
+                margin-top: 7px;
+            }
+            .conf-bar-track {
+                height: 5px;
+                background: var(--border-base);
+                border-radius: 3px;
+                overflow: hidden;
+            }
+            .conf-bar-fill {
+                height: 100%;
+                border-radius: 3px;
+                background: linear-gradient(
+                    90deg,
+                    var(--primary),
+                    var(--success)
+                );
+                transition: width 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                width: 0;
+            }
+
+            .conf-badge {
+                display: inline-flex;
+                align-items: center;
+                padding: 4px 11px;
+                border-radius: 20px;
+                font-size: 13px;
+                font-weight: 700;
+                background: var(--primary-lite);
+                color: var(--primary);
+                flex-shrink: 0;
+            }
+
+            .fold-img-card {
+                border-radius: var(--radius-lg);
+                overflow: hidden;
+                border: 1px solid var(--border-base);
+                box-shadow: var(--shadow);
+                background: #111;
+                position: relative;
+            }
+            .fold-img-card img {
+                width: 100%;
+                display: block;
+            }
+            .fold-img-badge {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                padding: 4px 11px;
+                border-radius: 20px;
+                font-size: 11px;
+                font-weight: 600;
+                color: white;
+                background: rgba(0, 0, 0, 0.55);
+                backdrop-filter: blur(6px);
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+
+            .canny-card {
+                border-radius: var(--radius-lg);
+                overflow: hidden;
+                border: 1px solid var(--border-base);
+                box-shadow: var(--shadow);
+                background: #000;
+                position: relative;
+            }
+            .canny-card canvas {
+                display: block;
+                width: 100%;
+            }
+            .canny-badge {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                padding: 4px 11px;
+                border-radius: 20px;
+                font-size: 11px;
+                font-weight: 600;
+                color: white;
+                background: rgba(0, 0, 0, 0.55);
+                backdrop-filter: blur(6px);
+            }
+
+            .steps-card {
+                background: var(--card);
+                border: 1px solid var(--border-base);
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow);
+                overflow: hidden;
+            }
+
+            .steps-card-header {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                padding: 13px 16px;
+                border-bottom: 1px solid var(--border-base);
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--ink);
+            }
+            .steps-card-header i {
+                font-size: 17px;
+                color: var(--primary);
+            }
+
+            .steps-list {
+                padding: 12px 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .step-item {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 10px 12px;
+                border-radius: var(--radius-sm);
+                animation: stepIn 300ms ease both;
+            }
+            @keyframes stepIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(6px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .step-bubble {
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                background: var(--primary-lite);
+                color: var(--primary);
+                font-size: 13px;
+                font-weight: 800;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .step-body {
+                flex: 1;
+            }
+            .step-title {
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--ink);
+            }
+            .step-desc {
+                font-size: 12px;
+                color: var(--ink2);
+                margin-top: 3px;
+                line-height: 1.45;
+            }
+
+            .btn-reset {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+                width: 100%;
+                font-family: inherit;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px;
+                border-radius: var(--radius);
+                background: var(--card);
+                border: 1px solid var(--border-base);
+                color: var(--ink2);
+                cursor: pointer;
+                transition: all 150ms ease;
+                box-shadow: var(--shadow);
+            }
+            .btn-reset:hover {
+                background: var(--surface);
+                color: var(--ink);
+            }
+            .btn-reset:active {
+                transform: scale(0.98);
+            }
+
+            /* ── Toast ───────────────────────────────────────────────────── */
+            .toast-layer {
+                position: fixed;
+                bottom: 1.5rem;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 200;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                pointer-events: none;
+                width: min(360px, calc(100vw - 2rem));
+            }
+            .toast {
+                width: 100%;
+                padding: 11px 18px;
+                border-radius: var(--radius);
+                font-size: 13px;
+                font-weight: 500;
+                color: white;
+                box-shadow: var(--shadow-lg);
+                animation: toastIn 220ms cubic-bezier(0.34, 1.56, 0.64, 1)
+                    forwards;
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                pointer-events: auto;
+            }
+            .toast i {
+                font-size: 16px;
+                flex-shrink: 0;
+            }
+            .toast.success {
+                background: var(--success);
+            }
+            .toast.warn {
+                background: var(--warn);
+            }
+            .toast.error {
+                background: var(--danger);
+            }
+            .toast.info {
+                background: #1e3a5f;
+            }
+            @keyframes toastIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px) scale(0.95);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+
+            /* ── Footer ──────────────────────────────────────────────────── */
+            footer {
+                text-align: center;
+                font-size: 11px;
+                color: var(--ink3);
+                padding-top: 2rem;
+            }
+
+            /* ── Responsive ──────────────────────────────────────────────── */
+            @media (max-width: 768px) {
+                .wrapper {
+                    padding-left: 1rem;
+                    padding-right: 1rem;
+                }
+                .steps {
+                    gap: 0;
+                }
+                .step {
+                    font-size: 11px;
+                }
+            }
+            @media (max-width: 480px) {
+                .brand-name {
+                    font-size: 17px;
+                }
+                .result-label {
+                    font-size: 17px;
+                }
+                .proc-steps {
+                    max-width: 100%;
+                }
+                .action-row {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            /* ── Terminal / Activity Log ─────────────────────────────────── */
+            #termWrap {
+                background: var(--term-bg);
+                border: 1px solid var(--term-border);
+                border-radius: var(--radius);
+                margin: 0 auto 1.5rem;
+                max-width: 640px;
+                padding: 0 1.25rem;
+                overflow: hidden;
+            }
+            #termHeader {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 0;
+                cursor: pointer;
+                user-select: none;
+            }
+            .term-left {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .term-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--success);
+            }
+            .term-title {
+                font-size: 12px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.6);
+                font-family: "JetBrains Mono", monospace;
+                letter-spacing: 0.5px;
+            }
+            .term-actions {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .term-action-btn {
+                font-family: "JetBrains Mono", monospace;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.4);
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 2px 6px;
+                border-radius: 4px;
+                transition:
+                    color 150ms ease,
+                    background 150ms ease;
+            }
+            .term-action-btn:hover {
+                color: rgba(255, 255, 255, 0.75);
+                background: rgba(255, 255, 255, 0.08);
+            }
+            .term-chevron {
+                font-size: 16px;
+                color: rgba(255, 255, 255, 0.4);
+                transition: transform 250ms ease;
+            }
+            .term-chevron-up {
+                transform: rotate(180deg);
+            }
+            #logBody {
+                max-height: 0;
+                overflow: hidden;
+                transition:
+                    max-height 300ms ease,
+                    padding 300ms ease;
+            }
+            #termWrap.term-expanded #logBody {
+                max-height: 220px;
+                overflow-y: auto;
+                padding-bottom: 12px;
+            }
+            #logBody::-webkit-scrollbar {
+                width: 4px;
+            }
+            #logBody::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            #logBody::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 2px;
+            }
+            .log-line {
+                display: flex;
+                gap: 10px;
+                align-items: baseline;
+                font-family: "JetBrains Mono", monospace;
+                font-size: 11px;
+                line-height: 1.65;
+                padding: 1px 0;
+            }
+            .log-time {
+                color: rgba(255, 255, 255, 0.28);
+                flex-shrink: 0;
+            }
+            .log-type {
+                flex-shrink: 0;
+                font-weight: 700;
+                min-width: 52px;
+            }
+            .log-type-info {
+                color: #5dcaa5;
+            }
+            .log-type-success {
+                color: #4caf7d;
+            }
+            .log-type-warn {
+                color: #d4882a;
+            }
+            .log-type-error {
+                color: #d94f4f;
+            }
+            .log-msg {
+                color: rgba(255, 255, 255, 0.65);
+                word-break: break-word;
+            }
+
+            /* ── Panels Grid ─────────────────────────────────────────────── */
+            #panelsGrid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                padding: 10px;
+            }
+            .panel {
+                background: var(--card);
+                border: 0.5px solid var(--border);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .panel-head {
+                padding: 6px 10px;
+                border-bottom: 0.5px solid var(--border);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .panel-label {
+                font-size: 10px;
+                font-weight: 500;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                color: var(--ink3);
+            }
+            .panel-badge {
+                font-size: 9px;
+                padding: 1px 6px;
+                border-radius: 99px;
+                font-weight: 500;
+            }
+            .badge-original {
+                background: #f1efe8;
+                color: #5f5e5a;
+            }
+            .badge-canny {
+                background: #1a1a1a;
+                color: rgba(255, 255, 255, 0.55);
+            }
+            .badge-fold {
+                background: var(--primary-lite);
+                color: var(--primary);
+            }
+            .badge-size {
+                background: #e8f5e9;
+                color: #2e7d32;
+            }
+            .size-chip {
+                display: inline-block;
+                font-size: 13px;
+                font-weight: 700;
+                padding: 1px 8px;
+                border-radius: 6px;
+                margin-left: 6px;
+            }
+            .size-S {
+                background: #bbdefb;
+                color: #0d47a1;
+            }
+            .size-M {
+                background: #c8e6c9;
+                color: #1b5e20;
+            }
+            .size-L {
+                background: #fff9c4;
+                color: #f57f17;
+            }
+            .size-XL {
+                background: #ffccbc;
+                color: #bf360c;
+            }
+            .size-XXL {
+                background: #ffcdd2;
+                color: #b71c1c;
+            }
+
+            .panel-body {
+                height: 200px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                position: relative;
+                background: var(--surface);
+            }
+            .panel-body img,
+            .panel-body canvas {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+            .panel-empty {
+                font-size: 11px;
+                color: var(--ink3);
+            }
+
+            /* ── Result Bar ──────────────────────────────────────────────── */
+            #resultBar {
+                background: var(--card);
+                border-bottom: 0.5px solid var(--border);
+                padding: 8px 14px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .rbar-icon {
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
+                background: var(--primary-lite);
+                color: var(--primary);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+            .rbar-info {
+                flex: 1;
+                min-width: 0;
+            }
+            .rbar-name {
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--ink);
+            }
+            .rbar-sub {
+                font-size: 10px;
+                color: var(--ink3);
+                margin-top: 1px;
+            }
+            .rbar-conf {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .rbar-bar-bg {
+                width: 60px;
+                height: 4px;
+                background: var(--border);
+                border-radius: 99px;
+                overflow: hidden;
+            }
+            .rbar-bar-fill {
+                height: 100%;
+                width: 0%;
+                background: var(--primary);
+                border-radius: 99px;
+                transition: width 0.5s ease;
+            }
+            .rbar-pct {
+                font-size: 11px;
+                font-weight: 500;
+                color: var(--primary);
+                min-width: 32px;
+                text-align: right;
+            }
+
+            /* ── Fold Steps ──────────────────────────────────────────────── */
+            .fsteps-header {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                color: var(--ink2);
+                padding: 0 10px;
+                margin-bottom: 6px;
+            }
+            .fstep-item {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                padding: 7px 10px;
+                background: var(--card);
+                border: 0.5px solid var(--border);
+                border-radius: 7px;
+                margin-bottom: 4px;
+            }
+            .fstep-num {
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: var(--primary-lite);
+                color: var(--primary);
+                font-size: 10px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                margin-top: 1px;
+            }
+            .fstep-title {
+                font-size: 11px;
+                font-weight: 500;
+                color: var(--ink);
+            }
+            .fstep-desc {
+                font-size: 10px;
+                color: var(--ink3);
+                margin-top: 1px;
+            }
+
+            @media (max-width: 580px) {
+                #panelsGrid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            /* ── Calibration Modal ───────────────────────────────────────── */
+            #calibOverlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.55);
+                z-index: 900;
+                backdrop-filter: blur(3px);
+            }
+            #calibOverlay.open {
+                display: block;
+            }
+
+            #calibModal {
+                display: none;
+                position: fixed;
+                inset: 0;
+                z-index: 901;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                overflow-y: auto;
+            }
+            #calibModal.open {
+                display: flex;
+            }
+
+            #calibCard {
+                background: var(--card);
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow-lg);
+                width: 100%;
+                max-width: 680px;
+                overflow: hidden;
+                animation: slideUp 200ms ease;
+            }
+            @keyframes slideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(16px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            #calibCardHead {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid var(--border);
+                background: var(--surface);
+            }
+            #calibCardHead h2 {
+                font-size: 15px;
+                font-weight: 700;
+                color: var(--ink);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .btn-calib-close {
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: var(--ink3);
+                font-size: 20px;
+                line-height: 1;
+                padding: 4px;
+                border-radius: 6px;
+                transition: background 150ms;
+            }
+            .btn-calib-close:hover {
+                background: var(--border);
+                color: var(--ink);
+            }
+
+            #calibBody {
+                padding: 1.25rem;
+            }
+
+            .calib-instruction {
+                font-size: 13px;
+                color: var(--ink2);
+                margin-bottom: 1rem;
+                padding: 10px 12px;
+                background: var(--primary-lite);
+                border-radius: var(--radius-sm);
+                border-left: 3px solid var(--primary);
+                line-height: 1.5;
+            }
+
+            /* Image container for clicking */
+            #calibImgWrap {
+                position: relative;
+                display: block;
+                border-radius: var(--radius-sm);
+                overflow: hidden;
+                border: 2px solid var(--border);
+                cursor: crosshair;
+                background: #111;
+                user-select: none;
+            }
+            #calibImgWrap.done {
+                cursor: default;
+            }
+            #calibImg {
+                display: block;
+                width: 100%;
+                height: auto;
+                max-height: 420px;
+                object-fit: contain;
+                pointer-events: none;
+            }
+            #calibSvg {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+            }
+
+            /* Corner dot colors */
+            .dot-TL {
+                fill: #ef4444;
+                stroke: white;
+            }
+            .dot-TR {
+                fill: #f97316;
+                stroke: white;
+            }
+            .dot-BR {
+                fill: #22c55e;
+                stroke: white;
+            }
+            .dot-BL {
+                fill: #3b82f6;
+                stroke: white;
+            }
+            .dot-label {
+                font-size: 11px;
+                font-weight: 700;
+                fill: white;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+            }
+
+            /* Corner indicator chips */
+            #calibCorners {
+                display: flex;
+                gap: 6px;
+                margin-bottom: 0.75rem;
+                flex-wrap: wrap;
+            }
+            .corner-chip {
+                font-size: 11px;
+                font-weight: 700;
+                padding: 3px 10px;
+                border-radius: 20px;
+                border: 2px solid;
+                opacity: 0.4;
+                transition:
+                    opacity 200ms,
+                    transform 150ms;
+            }
+            .corner-chip.active {
+                opacity: 1;
+                transform: scale(1.08);
+            }
+            .corner-chip.done {
+                opacity: 0.85;
+            }
+            .chip-TL {
+                color: #ef4444;
+                border-color: #ef4444;
+            }
+            .chip-TR {
+                color: #f97316;
+                border-color: #f97316;
+            }
+            .chip-BR {
+                color: #22c55e;
+                border-color: #22c55e;
+            }
+            .chip-BL {
+                color: #3b82f6;
+                border-color: #3b82f6;
+            }
+
+            /* Preview section */
+            #calibPreviewWrap {
+                margin-top: 0.75rem;
+                border-radius: var(--radius-sm);
+                overflow: hidden;
+                border: 2px solid var(--primary-mid);
+                display: none;
+            }
+            #calibPreviewImg {
+                display: block;
+                width: 100%;
+                height: auto;
+            }
+            #calibPreviewLabel {
+                font-size: 11px;
+                color: var(--primary);
+                font-weight: 600;
+                padding: 4px 8px;
+                background: var(--primary-lite);
+                text-align: center;
+            }
+
+            /* Upload area inside modal */
+            #calibUploadArea {
+                border: 2px dashed var(--border-base);
+                border-radius: var(--radius-sm);
+                padding: 2rem 1rem;
+                text-align: center;
+                cursor: pointer;
+                transition:
+                    border-color 200ms,
+                    background 200ms;
+                color: var(--ink3);
+                font-size: 13px;
+            }
+            #calibUploadArea:hover,
+            #calibUploadArea.drag-over {
+                border-color: var(--primary);
+                background: var(--primary-lite);
+                color: var(--primary);
+            }
+            #calibUploadArea i {
+                font-size: 28px;
+                display: block;
+                margin-bottom: 6px;
+            }
+
+            /* Footer actions */
+            #calibFooter {
+                display: flex;
+                gap: 8px;
+                padding: 1rem 1.25rem;
+                border-top: 1px solid var(--border);
+                background: var(--surface);
+                flex-wrap: wrap;
+            }
+            .btn-calib {
+                flex: 1;
+                min-width: 120px;
+                padding: 9px 16px;
+                border: none;
+                border-radius: var(--radius-sm);
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition:
+                    background 150ms,
+                    opacity 150ms;
+            }
+            .btn-calib:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            .btn-calib-primary {
+                background: var(--primary);
+                color: white;
+            }
+            .btn-calib-primary:not(:disabled):hover {
+                background: var(--primary-dk);
+            }
+            .btn-calib-secondary {
+                background: var(--border);
+                color: var(--ink2);
+            }
+            .btn-calib-secondary:not(:disabled):hover {
+                background: #ddd;
+            }
+            .btn-calib-danger {
+                background: #fee2e2;
+                color: #b91c1c;
+            }
+            .btn-calib-danger:not(:disabled):hover {
+                background: #fecaca;
+            }
+
+            /* Kalibrasi button in header */
+            .btn-calib-open {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--primary);
+                padding: 5px 12px;
+                border-radius: 20px;
+                border: 1.5px solid var(--primary-mid);
+                background: var(--primary-lite);
+                cursor: pointer;
+                transition: background 150ms;
+                white-space: nowrap;
+            }
+            .btn-calib-open:hover {
+                background: #c8eee3;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="wrapper">
+            <!-- HEADER -->
+            <header>
+                <div class="brand">
+                    <div class="brand-icon">
+                        <i class="ti ti-fold-down" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <div class="brand-name">Cloth Folder</div>
+                        <div class="brand-sub">
+                            Panduan melipat pakaian cerdas
+                        </div>
+                    </div>
+                </div>
+                <button
+                    class="btn-calib-open"
+                    onclick="openCalibModal()"
+                    title="Kalibrasi perspektif 4 titik"
+                >
+                    <i class="ti ti-viewfinder"></i>
+                    <span>Kalibrasi</span>
+                </button>
+                <div class="status-pill">
+                    <div class="dot-live pulse" id="dotLive"></div>
+                    <span id="statusText">Memeriksa…</span>
+                </div>
+            </header>
+
+            <!-- STEP INDICATOR -->
+            <div class="steps" role="list" aria-label="Tahap proses">
+                <div class="step active" id="step1" role="listitem">
+                    <div class="step-num" id="sn1">1</div>
+                    <span>Upload Foto</span>
+                </div>
+                <div class="step-line" id="sl1"></div>
+                <div class="step" id="step2" role="listitem">
+                    <div class="step-num" id="sn2">2</div>
+                    <span>Deteksi Pakaian</span>
+                </div>
+                <div class="step-line" id="sl2"></div>
+                <div class="step" id="step3" role="listitem">
+                    <div class="step-num" id="sn3">3</div>
+                    <span>Panduan Lipatan</span>
+                </div>
+            </div>
+
+            <!-- RESULT BAR (hidden by default) -->
+            <div id="resultBar" style="display: none">
+                <div class="rbar-icon">
+                    <i class="ti ti-shirt" aria-hidden="true"></i>
+                </div>
+                <div class="rbar-info">
+                    <div class="rbar-name" id="rbarName"></div>
+                    <div class="rbar-sub" id="rbarSub"></div>
+                </div>
+                <div class="rbar-conf">
+                    <div class="rbar-bar-bg">
+                        <div class="rbar-bar-fill" id="rbarFill"></div>
+                    </div>
+                    <span class="rbar-pct" id="rbarPct"></span>
+                </div>
+            </div>
+
+            <!-- UPLOAD SECTION -->
+            <div id="uploadSection">
+                <div class="card">
+                    <div
+                        class="dropzone"
+                        id="dropzone"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Area upload foto pakaian"
+                        onclick="dzClick()"
+                        ondragover="onDragOver(event)"
+                        ondragleave="onDragLeave(event)"
+                        ondrop="onDrop(event)"
+                    >
+                        <div class="dz-inner" id="dzInner">
+                            <div class="dz-icon-wrap">
+                                <i
+                                    class="ti ti-camera-up"
+                                    aria-hidden="true"
+                                ></i>
+                            </div>
+                            <span class="dz-title"
+                                >Foto atau seret gambar pakaian</span
+                            >
+                            <span class="dz-sub"
+                                >JPEG · PNG · WEBP — maks 5 MB</span
+                            >
+                        </div>
+                        <div class="dz-preview" id="dzPreview">
+                            <img
+                                id="previewImg"
+                                alt="Pratinjau pakaian yang dipilih"
+                            />
+                            <button
+                                class="btn-rm"
+                                id="btnRm"
+                                onclick="removeImage(event)"
+                                aria-label="Hapus gambar"
+                            >
+                                &#x00D7;
+                            </button>
+                        </div>
+                    </div>
+                    <div class="action-row">
+                        <button class="btn btn-outline" onclick="openCamera()">
+                            <i class="ti ti-camera" aria-hidden="true"></i>
+                            Kamera
+                        </button>
+                        <button
+                            class="btn btn-filled"
+                            onclick="triggerUpload()"
+                        >
+                            <i class="ti ti-upload" aria-hidden="true"></i>
+                            Pilih File
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROCESSING SECTION -->
+            <div id="processingSection">
+                <div class="spinner-wrap">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-icon">
+                        <i class="ti ti-shirt" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <div class="proc-title">Menganalisis pakaian kamu&#8230;</div>
+                <div class="proc-sub">Hanya butuh beberapa detik</div>
+                <div class="proc-steps">
+                    <div class="proc-step-item active" id="ps1">
+                        <i class="ti ti-cpu" aria-hidden="true"></i> Klasifikasi
+                        jenis pakaian
+                    </div>
+                    <div class="proc-step-item" id="ps2">
+                        <i class="ti ti-scan" aria-hidden="true"></i> Deteksi
+                        bentuk &amp; tepi
+                    </div>
+                    <div class="proc-step-item" id="ps3">
+                        <i class="ti ti-route" aria-hidden="true"></i> Membuat
+                        panduan lipat
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANELS GRID (hidden by default, shown after result) -->
+            <div id="panelsGrid" style="display: none">
+                <div class="panel" id="panelOriginal">
+                    <div class="panel-head">
+                        <span class="panel-label">Foto asli</span>
+                        <span class="panel-badge badge-original">Original</span>
+                    </div>
+                    <div class="panel-body">
+                        <img id="originalImg" alt="Foto asli pakaian" />
+                    </div>
+                </div>
+
+                <div class="panel" id="panelCanny">
+                    <div class="panel-head">
+                        <span class="panel-label">Canny edges</span>
+                        <span class="panel-badge badge-canny">Edge</span>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="cannyCanvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="panel" id="panelFold">
+                    <div class="panel-head">
+                        <span class="panel-label">Panduan lipatan</span>
+                        <span class="panel-badge badge-fold">Fold</span>
+                    </div>
+                    <div class="panel-body">
+                        <img
+                            id="foldImg"
+                            alt="Panduan lipat pakaian"
+                            style="display: none"
+                        />
+                        <span id="foldNoImg" class="panel-empty"
+                            >Tidak tersedia</span
+                        >
+                    </div>
+                </div>
+
+                <div class="panel" id="panelSize">
+                    <div class="panel-head">
+                        <span class="panel-label">Estimasi ukuran</span>
+                        <span class="panel-badge badge-size">Size</span>
+                    </div>
+                    <div class="panel-body">
+                        <img
+                            id="sizeImg"
+                            alt="Estimasi ukuran pakaian"
+                            style="display: none"
+                        />
+                        <span id="sizeNoImg" class="panel-empty"
+                            >Belum dikalibrasi</span
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOLD STEPS (hidden by default) -->
+            <div id="foldSteps" style="display: none; padding: 0 10px 10px">
+                <div class="fsteps-header">
+                    <i class="ti ti-list-numbers" aria-hidden="true"></i>
+                    Langkah melipat
+                </div>
+                <div id="fstepsList"></div>
+            </div>
+
+            <!-- RESET BUTTON (hidden by default) -->
+            <button
+                id="btnReset"
+                class="btn-reset"
+                onclick="resetAll()"
+                style="display: none"
+            >
+                <i class="ti ti-refresh" aria-hidden="true"></i> Coba Pakaian
+                Lain
+            </button>
         </div>
-        <div class="dropzone-preview" id="previewWrap">
-          <img id="previewImg" alt="preview">
-          <button class="btn-remove" id="btnRemove" onclick="removeImage(event)" aria-label="Hapus gambar">&times;</button>
+
+        <!-- TERMINAL / ACTIVITY LOG -->
+        <div id="termWrap" class="term-expanded">
+            <div
+                id="termHeader"
+                onclick="toggleTerminal()"
+                role="button"
+                aria-expanded="true"
+            >
+                <div class="term-left">
+                    <span class="term-dot"></span>
+                    <span class="term-title">activity log</span>
+                </div>
+                <div class="term-actions">
+                    <button
+                        onclick="
+                            event.stopPropagation();
+                            clearLog();
+                        "
+                        class="term-action-btn"
+                    >
+                        clear
+                    </button>
+                    <i
+                        id="termChevron"
+                        class="ti ti-chevron-down term-chevron term-chevron-up"
+                        aria-hidden="true"
+                    ></i>
+                </div>
+            </div>
+            <div id="logBody"></div>
         </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-outline" onclick="openCamera()">
-          <i class="ti ti-camera" style="font-size:14px" aria-hidden="true"></i> Kamera
-        </button>
-        <button class="btn btn-filled" onclick="triggerUpload()">
-          <i class="ti ti-upload" style="font-size:14px" aria-hidden="true"></i> Upload
-        </button>
-      </div>
-    </div>
 
-    <!-- RIGHT: Canny Edges -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Canny Edges</span>
-        <span class="chip" id="cannyChip">menunggu...</span>
-      </div>
-      <div class="canny-empty" id="cannyEmpty">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-        </svg>
-        <span class="canny-empty-text">Hasil deteksi tepi akan muncul di sini</span>
-      </div>
-      <div class="canny-result" id="cannyResult">
-        <div class="canny-canvas-wrap">
-          <canvas id="cannyCanvas"></canvas>
+        <!-- ── Perspective Calibration Modal ─────────────────────── -->
+        <div id="calibOverlay" onclick="closeCalibModal()"></div>
+        <div
+            id="calibModal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Kalibrasi Perspektif"
+        >
+            <div id="calibCard">
+                <div id="calibCardHead">
+                    <h2>
+                        <i class="ti ti-viewfinder"></i> Kalibrasi Perspektif
+                    </h2>
+                    <button
+                        class="btn-calib-close"
+                        onclick="closeCalibModal()"
+                        title="Tutup"
+                    >
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <div id="calibBody">
+                    <!-- Step A: upload photo -->
+                    <div id="calibStepUpload">
+                        <p class="calib-instruction">
+                            <strong>Langkah 1:</strong> Upload foto pelipat
+                            kosong (tanpa pakaian). Pastikan 4 marker X biru di
+                            sudut terlihat jelas.
+                        </p>
+                        <div
+                            id="calibUploadArea"
+                            onclick="calibTriggerUpload()"
+                            ondragover="calibDragOver(event)"
+                            ondragleave="calibDragLeave(event)"
+                            ondrop="calibDrop(event)"
+                        >
+                            <i class="ti ti-photo-up"></i>
+                            <strong>Klik atau seret foto pelipat</strong>
+                            <span
+                                style="
+                                    display: block;
+                                    margin-top: 4px;
+                                    font-size: 12px;
+                                "
+                                >JPEG, PNG, WEBP</span
+                            >
+                        </div>
+                        <input
+                            type="file"
+                            id="calibFileInput"
+                            accept="image/*"
+                            style="display: none"
+                            onchange="calibOnFile(event)"
+                        />
+                    </div>
+
+                    <!-- Step B: click 4 corners -->
+                    <div id="calibStepClick" style="display: none">
+                        <p class="calib-instruction">
+                            <strong>Langkah 2:</strong> Klik 4 marker sudut
+                            secara berurutan:
+                            <span style="color: #ef4444; font-weight: 700"
+                                >TL</span
+                            >
+                            &rarr;
+                            <span style="color: #f97316; font-weight: 700"
+                                >TR</span
+                            >
+                            &rarr;
+                            <span style="color: #22c55e; font-weight: 700"
+                                >BR</span
+                            >
+                            &rarr;
+                            <span style="color: #3b82f6; font-weight: 700"
+                                >BL</span
+                            >
+                        </p>
+                        <div id="calibCorners">
+                            <span
+                                class="corner-chip chip-TL active"
+                                id="chip-TL"
+                                >&circledcirc; TL</span
+                            >
+                            <span class="corner-chip chip-TR" id="chip-TR"
+                                >&circledcirc; TR</span
+                            >
+                            <span class="corner-chip chip-BR" id="chip-BR"
+                                >&circledcirc; BR</span
+                            >
+                            <span class="corner-chip chip-BL" id="chip-BL"
+                                >&circledcirc; BL</span
+                            >
+                        </div>
+                        <div id="calibImgWrap" onclick="calibImgClick(event)">
+                            <img
+                                id="calibImg"
+                                alt="Foto pelipat untuk kalibrasi"
+                            />
+                            <svg
+                                id="calibSvg"
+                                xmlns="http://www.w3.org/2000/svg"
+                            ></svg>
+                        </div>
+                        <!-- Preview result -->
+                        <div id="calibPreviewWrap">
+                            <div id="calibPreviewLabel">
+                                Preview hasil koreksi perspektif
+                            </div>
+                            <img id="calibPreviewImg" alt="Preview warp" />
+                        </div>
+                    </div>
+                </div>
+                <div id="calibFooter">
+                    <button
+                        class="btn-calib btn-calib-danger"
+                        onclick="calibReset()"
+                        id="btnCalibReset"
+                        disabled
+                    >
+                        <i class="ti ti-refresh"></i> Reset
+                    </button>
+                    <button
+                        class="btn-calib btn-calib-secondary"
+                        onclick="calibPreview()"
+                        id="btnCalibPreview"
+                        disabled
+                    >
+                        <i class="ti ti-eye"></i> Preview Warp
+                    </button>
+                    <button
+                        class="btn-calib btn-calib-primary"
+                        onclick="calibSave()"
+                        id="btnCalibSave"
+                        disabled
+                    >
+                        <i class="ti ti-check"></i> Simpan Kalibrasi
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
-  </div>
+        <footer>Cloth Folder &#xB7; AI Clothing Classifier v2.0</footer>
 
-  <!-- LOG PANEL -->
-  <div class="log-panel">
-    <div class="log-header">
-      <div class="log-header-left">
-        <div class="log-dot"></div>
-        <span class="log-title">Activity Log</span>
-      </div>
-      <div class="log-header-right">
-        <div class="toggle-wrap" onclick="toggleAutoScroll()">
-          <span class="toggle-label">auto-scroll</span>
-          <div class="toggle-pill on" id="togglePill">
-            <div class="toggle-knob"></div>
-          </div>
-        </div>
-        <button class="btn-clear" onclick="clearLog()">clear</button>
-      </div>
-    </div>
-    <div class="log-body" id="logBody" role="log" aria-live="polite"></div>
-  </div>
+        <div class="toast-layer" id="toastLayer" aria-live="polite"></div>
 
-  <!-- FOOTER -->
-  <footer>
-    ClothBot Inference API v2.0 · YOLOv8l-cls · Folding Planner v3.2
-  </footer>
+        <input
+            type="file"
+            id="fileInput"
+            accept="image/jpeg,image/png,image/webp"
+            aria-hidden="true"
+            tabindex="-1"
+            style="display: none"
+            onchange="onFileChange(event)"
+        />
+        <canvas
+            id="offscreen"
+            style="display: none"
+            aria-hidden="true"
+        ></canvas>
 
-</div>
+        <script>
+            // ════════════════════════════════════════════════════════════════
+            // TERMINAL / ACTIVITY LOG
+            // ════════════════════════════════════════════════════════════════
 
-<input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" aria-hidden="true" onchange="onFileChange(event)">
-<canvas id="offscreen" style="display:none"></canvas>
+            var autoScroll = true;
 
-<script>
-// ── State ───────────────────────────────────────────────────────
-let currentFile = null;
-let autoScroll  = true;
+            function log(type, msg) {
+                var body = document.getElementById("logBody");
+                var now = new Date();
+                var ts = [now.getHours(), now.getMinutes(), now.getSeconds()]
+                    .map(function (n) {
+                        return String(n).padStart(2, "0");
+                    })
+                    .join(":");
+                var line = document.createElement("div");
+                line.className = "log-line";
+                line.innerHTML =
+                    '<span class="log-time">' +
+                    ts +
+                    "</span>" +
+                    '<span class="log-type log-type-' +
+                    type +
+                    '">[' +
+                    type +
+                    "]</span>" +
+                    '<span class="log-msg">' +
+                    msg +
+                    "</span>";
+                body.appendChild(line);
+                if (autoScroll) body.scrollTop = body.scrollHeight;
+            }
 
-// ── Helpers ─────────────────────────────────────────────────────
-function nowStr() {
-  const d = new Date();
-  return [d.getHours(), d.getMinutes(), d.getSeconds()]
-    .map(n => String(n).padStart(2, '0')).join(':');
-}
+            function toggleTerminal() {
+                var wrap = document.getElementById("termWrap");
+                var chevron = document.getElementById("termChevron");
+                var header = document.getElementById("termHeader");
+                var isExp = wrap.classList.toggle("term-expanded");
+                header.setAttribute("aria-expanded", String(isExp));
+                chevron.classList.toggle("term-chevron-up", isExp);
+            }
 
-function log(type, msg) {
-  const body  = document.getElementById('logBody');
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  entry.innerHTML =
-    `<span class="log-ts">[${nowStr()}]</span>` +
-    `<span class="log-tag ${type}">[${type.toUpperCase()}]</span>` +
-    `<span class="log-msg">${msg}</span>`;
-  body.appendChild(entry);
-  if (autoScroll) body.scrollTop = body.scrollHeight;
-}
+            function clearLog() {
+                document.getElementById("logBody").innerHTML = "";
+            }
 
-function clearLog() {
-  document.getElementById('logBody').innerHTML = '';
-  log('info', 'Log dibersihkan');
-}
+            // ════════════════════════════════════════════════════════════════
+            // DATA
+            // ════════════════════════════════════════════════════════════════
 
-function toggleAutoScroll() {
-  autoScroll = !autoScroll;
-  document.getElementById('togglePill').classList.toggle('on', autoScroll);
-}
+            const CLASS_LABELS = {
+                baju_lengan_panjang: "Baju Lengan Panjang",
+                baju_lengan_pendek: "Baju Lengan Pendek",
+                celana_panjang: "Celana Panjang",
+                celana_pendek: "Celana Pendek",
+            };
 
-// ── Step state machine ───────────────────────────────────────────
-function setStep(n) {
-  for (let i = 1; i <= 3; i++) {
-    const s = document.getElementById('step' + i);
-    const c = document.getElementById('sc' + i);
-    s.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
-    c.textContent = i < n ? '\u2713' : String(i);
-  }
-  for (let i = 1; i <= 2; i++) {
-    document.getElementById('sl' + i).classList.toggle('done', i < n);
-  }
-}
+            const CLASS_EMOJI = {
+                baju_lengan_panjang: "\u{1F454}",
+                baju_lengan_pendek: "\u{1F455}",
+                celana_panjang: "\u{1F456}",
+                celana_pendek: "\u{1FA73}",
+            };
 
-// ── File handling ────────────────────────────────────────────────
-const fileInput = document.getElementById('fileInput');
+            const STEP_DESC = {
+                "Lipat Kiri":
+                    "Ambil sisi kiri, lipat ke arah tengah sejajar badan.",
+                "Lipat Kanan":
+                    "Ambil sisi kanan, lipat ke arah tengah sejajar badan.",
+                "Lipat Bawah": "Lipat sepertiga bagian bawah ke arah tengah.",
+                "Lipat Lagi":
+                    "Lipat sekali lagi ke atas hingga bertemu bagian kerah.",
+                "Lipat Tengah":
+                    "Satukan kedua sisi, lipat memanjang di garis tengah.",
+                "Kaki ke Pinggang":
+                    "Angkat bagian kaki, lipat ke arah pinggang.",
+                "Lipat Lengan Kiri":
+                    "Ambil lengan kiri, lipat ke belakang mengikuti lebar badan.",
+                "Lipat Lengan Kanan":
+                    "Ambil lengan kanan, lipat ke belakang mengikuti lebar badan.",
+                "Lipat Sisi Kiri": "Lipat sisi kiri badan ke arah tengah.",
+                "Lipat Sisi Kanan": "Lipat sisi kanan badan ke arah tengah.",
+            };
 
-function triggerUpload() { fileInput.click(); }
+            const FALLBACK_STEPS = {
+                baju_lengan_panjang: [
+                    {
+                        title: "Letakkan menghadap ke bawah",
+                        desc: "Bentangkan baju di permukaan datar, sisi depan menghadap ke bawah.",
+                    },
+                    {
+                        title: "Lipat kedua lengan ke belakang",
+                        desc: "Lipat masing-masing lengan ke belakang mengikuti lebar badan.",
+                    },
+                    {
+                        title: "Lipat sisi kiri & kanan",
+                        desc: "Lipat sisi kiri, lalu kanan, ke bagian tengah.",
+                    },
+                    {
+                        title: "Lipat sepertiga bagian bawah",
+                        desc: "Lipat bagian bawah ke atas sebanyak dua kali.",
+                    },
+                ],
+                baju_lengan_pendek: [
+                    {
+                        title: "Letakkan menghadap ke bawah",
+                        desc: "Bentangkan baju di permukaan datar, sisi depan menghadap ke bawah.",
+                    },
+                    {
+                        title: "Lipat sisi kiri ke tengah",
+                        desc: "Lipat bagian kiri sepertiga lebar ke arah tengah.",
+                    },
+                    {
+                        title: "Lipat sisi kanan ke tengah",
+                        desc: "Lipat bagian kanan ke tengah sehingga tepi bertemu.",
+                    },
+                    {
+                        title: "Lipat bawah ke atas dua kali",
+                        desc: "Bagi dua dan lipat dari bawah ke atas.",
+                    },
+                ],
+                celana_panjang: [
+                    {
+                        title: "Lipat memanjang di tengah",
+                        desc: "Satukan kedua kaki agar jahitan samping sejajar.",
+                    },
+                    {
+                        title: "Ratakan permukaan",
+                        desc: "Rapatkan lipatan agar tidak ada kerutan.",
+                    },
+                    {
+                        title: "Lipat kaki ke arah pinggang",
+                        desc: "Angkat bagian kaki, lipat ke atas hingga setengah panjang.",
+                    },
+                    {
+                        title: "Lipat sekali lagi",
+                        desc: "Lipat kembali ke atas hingga bertemu bagian pinggang.",
+                    },
+                ],
+                celana_pendek: [
+                    {
+                        title: "Lipat memanjang di tengah",
+                        desc: "Satukan kedua kaki agar jahitan samping sejajar.",
+                    },
+                    {
+                        title: "Ratakan permukaan",
+                        desc: "Rapatkan dan ratakan agar tidak ada kerutan.",
+                    },
+                    {
+                        title: "Lipat bawah ke atas",
+                        desc: "Lipat bagian bawah ke atas hingga bertemu pinggang.",
+                    },
+                ],
+                _default: [
+                    {
+                        title: "Lipat menjadi dua",
+                        desc: "Lipat pakaian menjadi dua bagian yang sama.",
+                    },
+                    {
+                        title: "Rapikan tepi-tepinya",
+                        desc: "Rapatkan agar tidak ada bagian yang keluar.",
+                    },
+                ],
+            };
 
-function dropzoneClick() {
-  if (currentFile) return;
-  fileInput.click();
-}
+            // ════════════════════════════════════════════════════════════════
+            // STATE
+            // ════════════════════════════════════════════════════════════════
 
-function onFileChange(e) {
-  const f = e.target.files[0];
-  if (f) handleFile(f);
-  e.target.value = '';
-}
+            let currentFile = null;
 
-function handleFile(f) {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-  if (!allowed.includes(f.type)) {
-    log('error', 'Format tidak didukung. Gunakan JPEG, PNG, atau WEBP');
-    return;
-  }
-  if (f.size > 5 * 1024 * 1024) {
-    log('warn', 'Ukuran file melebihi 5 MB');
-    return;
-  }
-  currentFile = f;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    document.getElementById('previewImg').src = ev.target.result;
-    document.getElementById('previewWrap').classList.add('show');
-    document.getElementById('dropzoneInner').style.visibility = 'hidden';
-    document.getElementById('dropzone').style.cursor = 'default';
-  };
-  reader.readAsDataURL(f);
-  log('info', `Gambar dimuat: ${f.name} (${(f.size/1024).toFixed(0)} KB)`);
-  setStep(2);
-  runPipeline(f);
-}
+            // ════════════════════════════════════════════════════════════════
+            // TOAST
+            // ════════════════════════════════════════════════════════════════
 
-function removeImage(e) {
-  e.stopPropagation();
-  currentFile = null;
-  document.getElementById('previewImg').src = '';
-  document.getElementById('previewWrap').classList.remove('show');
-  document.getElementById('dropzoneInner').style.visibility = '';
-  document.getElementById('dropzone').style.cursor = 'pointer';
-  document.getElementById('cannyEmpty').style.display  = '';
-  document.getElementById('cannyResult').style.display = 'none';
-  document.getElementById('cannyChip').textContent     = 'menunggu...';
-  log('warn', 'Gambar dihapus. Menunggu input baru...');
-  setStep(1);
-}
+            const TOAST_ICONS = {
+                success: "ti-circle-check",
+                warn: "ti-alert-triangle",
+                error: "ti-alert-circle",
+                info: "ti-info-circle",
+            };
 
-// ── Drag & Drop ──────────────────────────────────────────────────
-function onDragOver(e) {
-  e.preventDefault();
-  document.getElementById('dropzone').classList.add('drag-over');
-}
-function onDragLeave() {
-  document.getElementById('dropzone').classList.remove('drag-over');
-}
-function onDrop(e) {
-  e.preventDefault();
-  document.getElementById('dropzone').classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) handleFile(f);
-}
+            function toast(type, msg, ms) {
+                ms = ms || 3800;
+                var layer = document.getElementById("toastLayer");
+                var el = document.createElement("div");
+                el.className = "toast " + type;
+                el.innerHTML =
+                    '<i class="ti ' +
+                    (TOAST_ICONS[type] || "ti-info-circle") +
+                    '" aria-hidden="true"></i><span>' +
+                    msg +
+                    "</span>";
+                layer.appendChild(el);
+                function hide() {
+                    el.style.transition = "opacity 280ms, transform 280ms";
+                    el.style.opacity = "0";
+                    el.style.transform = "translateY(6px) scale(.96)";
+                    setTimeout(function () {
+                        el.remove();
+                    }, 300);
+                }
+                setTimeout(hide, ms);
+                el.addEventListener("click", hide);
+            }
 
-// ── Camera ───────────────────────────────────────────────────────
-function openCamera() {
-  if (!navigator.mediaDevices) {
-    log('warn', 'Akses kamera belum tersedia di browser ini');
-    return;
-  }
-  const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
-  inp.onchange = e => { const f = e.target.files[0]; if (f) handleFile(f); };
-  inp.click();
-}
+            // ════════════════════════════════════════════════════════════════
+            // STEP INDICATOR
+            // ════════════════════════════════════════════════════════════════
 
-// ── Pipeline ─────────────────────────────────────────────────────
-async function runPipeline(file) {
-  log('info', 'Mengirim ke inference API...');
-  const fd = new FormData();
-  fd.append('image', file, file.name || 'photo.jpg');
-  try {
-    const res  = await fetch('/predict', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || res.statusText);
-    log('success', 'Klasifikasi selesai');
-    if (data.predicted_class != null && data.confidence != null) {
-      const conf = (data.confidence * 100).toFixed(1);
-      log('info', `Terdeteksi: ${data.predicted_class} (${conf}%)`);
-    }
-  } catch (err) {
-    log('warn', 'API tidak terjangkau — berjalan dalam mode demo');
-  }
-  log('info', 'Menjalankan Canny edge detection...');
-  runCanny(file);
-}
+            function setStep(n) {
+                for (var i = 1; i <= 3; i++) {
+                    var s = document.getElementById("step" + i);
+                    var c = document.getElementById("sn" + i);
+                    if (i < n) {
+                        s.className = "step done";
+                        c.textContent = "\u2713";
+                    } else if (i === n) {
+                        s.className = "step active";
+                        c.textContent = String(i);
+                    } else {
+                        s.className = "step";
+                        c.textContent = String(i);
+                    }
+                }
+                for (var j = 1; j <= 2; j++) {
+                    var line = document.getElementById("sl" + j);
+                    if (j < n) line.classList.add("done");
+                    else line.classList.remove("done");
+                }
+            }
 
-// ── Canny (browser) ──────────────────────────────────────────────
-function convolve5(src, W, H) {
-  const k   = [2,4,5,4,2, 4,9,12,9,4, 5,12,15,12,5, 4,9,12,9,4, 2,4,5,4,2];
-  const dst = new Float32Array(W * H);
-  for (let y = 2; y < H-2; y++) {
-    for (let x = 2; x < W-2; x++) {
-      let s = 0;
-      for (let ky = 0; ky < 5; ky++)
-        for (let kx = 0; kx < 5; kx++)
-          s += k[ky*5+kx] * src[(y+ky-2)*W + (x+kx-2)];
-      dst[y*W+x] = s / 159;
-    }
-  }
-  return dst;
-}
+            // ════════════════════════════════════════════════════════════════
+            // SECTION VISIBILITY
+            // ════════════════════════════════════════════════════════════════
 
-function runCanny(file) {
-  const img = new Image();
-  img.onload = () => {
-    const off = document.getElementById('offscreen');
-    off.width  = img.naturalWidth;
-    off.height = img.naturalHeight;
-    const ctx = off.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    const W = off.width, H = off.height;
-    const px = ctx.getImageData(0, 0, W, H).data;
+            function showSection(id) {
+                document.getElementById("uploadSection").style.display =
+                    id === "uploadSection" ? "block" : "none";
+                document.getElementById("processingSection").style.display =
+                    id === "processingSection" ? "flex" : "none";
+                document.getElementById("panelsGrid").style.display =
+                    id === "resultSection" ? "grid" : "none";
+                document.getElementById("btnReset").style.display =
+                    id === "resultSection" ? "" : "none";
+                if (id !== "resultSection") {
+                    document.getElementById("resultBar").style.display = "none";
+                    document.getElementById("foldSteps").style.display = "none";
+                }
+            }
 
-    // Grayscale
-    const gray = new Float32Array(W * H);
-    for (let i = 0; i < W * H; i++)
-      gray[i] = 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
+            // ════════════════════════════════════════════════════════════════
+            // FILE HANDLING
+            // ════════════════════════════════════════════════════════════════
 
-    // Gaussian blur
-    const blr = convolve5(gray, W, H);
+            var fileInput = document.getElementById("fileInput");
 
-    // Sobel
-    const GXk = [-1,0,1,-2,0,2,-1,0,1];
-    const GYk = [-1,-2,-1,0,0,0,1,2,1];
-    const mag = new Float32Array(W * H);
-    const ang = new Float32Array(W * H);
-    for (let y = 1; y < H-1; y++) {
-      for (let x = 1; x < W-1; x++) {
-        let gx = 0, gy = 0;
-        for (let ky = -1; ky <= 1; ky++)
-          for (let kx = -1; kx <= 1; kx++) {
-            const v = blr[(y+ky)*W+(x+kx)];
-            gx += GXk[(ky+1)*3+(kx+1)] * v;
-            gy += GYk[(ky+1)*3+(kx+1)] * v;
-          }
-        const i = y*W+x;
-        mag[i] = Math.sqrt(gx*gx + gy*gy);
-        ang[i] = Math.atan2(gy, gx) * 180 / Math.PI;
-      }
-    }
+            function triggerUpload() {
+                fileInput.click();
+            }
 
-    // Non-max suppression
-    const nms = new Float32Array(W * H);
-    for (let y = 1; y < H-1; y++) {
-      for (let x = 1; x < W-1; x++) {
-        const i = y*W+x, m = mag[i];
-        let a = ang[i]; if (a < 0) a += 180;
-        let n1, n2;
-        if      (a < 22.5  || a >= 157.5) { n1 = mag[y*W+x+1];     n2 = mag[y*W+x-1]; }
-        else if (a < 67.5)                 { n1 = mag[(y+1)*W+x-1]; n2 = mag[(y-1)*W+x+1]; }
-        else if (a < 112.5)                { n1 = mag[(y+1)*W+x];   n2 = mag[(y-1)*W+x]; }
-        else                               { n1 = mag[(y-1)*W+x-1]; n2 = mag[(y+1)*W+x+1]; }
-        nms[i] = (m >= n1 && m >= n2) ? m : 0;
-      }
-    }
+            function dzClick() {
+                if (!currentFile) fileInput.click();
+            }
 
-    // Double threshold
-    let maxM = 0;
-    for (let i = 0; i < nms.length; i++) if (nms[i] > maxM) maxM = nms[i];
-    const lo = maxM * 0.08, hi = maxM * 0.22;
-    const STRONG = 255, WEAK = 128;
-    const edge = new Uint8Array(W * H);
-    for (let i = 0; i < nms.length; i++) {
-      if      (nms[i] >= hi) edge[i] = STRONG;
-      else if (nms[i] >= lo) edge[i] = WEAK;
-    }
+            function onFileChange(e) {
+                var f = e.target.files[0];
+                if (f) handleFile(f);
+                e.target.value = "";
+            }
 
-    // Hysteresis
-    function trace(y0, x0) {
-      const stk = [[y0, x0]];
-      while (stk.length) {
-        const [cy, cx] = stk.pop();
-        for (let dy = -1; dy <= 1; dy++)
-          for (let dx = -1; dx <= 1; dx++) {
-            if (!dy && !dx) continue;
-            const ny = cy+dy, nx = cx+dx;
-            if (ny < 0 || ny >= H || nx < 0 || nx >= W) continue;
-            const ni = ny*W+nx;
-            if (edge[ni] === WEAK) { edge[ni] = STRONG; stk.push([ny, nx]); }
-          }
-      }
-    }
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++)
-        if (edge[y*W+x] === STRONG) trace(y, x);
-    for (let i = 0; i < edge.length; i++) if (edge[i] !== STRONG) edge[i] = 0;
+            function handleFile(f) {
+                var allowed = ["image/jpeg", "image/png", "image/webp"];
+                if (allowed.indexOf(f.type) === -1) {
+                    toast(
+                        "error",
+                        "Format tidak didukung \u2014 gunakan JPEG, PNG, atau WEBP.",
+                    );
+                    return;
+                }
+                if (f.size > 5 * 1024 * 1024) {
+                    toast("warn", "Ukuran file melebihi batas 5 MB.");
+                    return;
+                }
 
-    // Render
-    const cv  = document.getElementById('cannyCanvas');
-    cv.width  = W; cv.height = H;
-    const out = cv.getContext('2d');
-    const od  = out.createImageData(W, H);
-    for (let i = 0; i < W*H; i++) {
-      const v = edge[i];
-      od.data[i*4]=v; od.data[i*4+1]=v; od.data[i*4+2]=v; od.data[i*4+3]=255;
-    }
-    out.putImageData(od, 0, 0);
+                currentFile = f;
+                log(
+                    "info",
+                    "File dipilih: " +
+                        f.name +
+                        " (" +
+                        Math.round(f.size / 1024) +
+                        " KB)",
+                );
 
-    document.getElementById('cannyEmpty').style.display  = 'none';
-    document.getElementById('cannyResult').style.display = 'block';
-    document.getElementById('cannyChip').textContent     = 'live preview';
-    log('success', `Canny edge detection selesai \u2192 ${file.name || 'image'}`);
-    setStep(3);
-  };
-  img.src = URL.createObjectURL(file);
-}
+                var reader = new FileReader();
+                reader.onload = function (ev) {
+                    document.getElementById("previewImg").src =
+                        ev.target.result;
+                    document.getElementById("originalImg").src =
+                        ev.target.result;
+                    document.getElementById("dzPreview").classList.add("show");
+                    document.getElementById("dzInner").style.visibility =
+                        "hidden";
+                    document.getElementById("dropzone").style.cursor =
+                        "default";
+                };
+                reader.readAsDataURL(f);
 
-// ── Boot log ─────────────────────────────────────────────────────
-setTimeout(() => log('info',    'ClothBot v2.0 initialized'),       100);
-setTimeout(() => log('info',    'Model YOLOv8l-cls loaded'),        400);
-setTimeout(() => log('info',    'Folding Planner v3.2 ready'),      700);
-setTimeout(() => log('info',    'Menunggu input gambar...'),       1000);
-</script>
-</body>
+                setStep(2);
+                runPipeline(f);
+            }
+
+            function removeImage(e) {
+                e.stopPropagation();
+                resetAll();
+            }
+
+            function resetAll() {
+                currentFile = null;
+                document.getElementById("previewImg").src = "";
+                document.getElementById("originalImg").src = "";
+                document.getElementById("dzPreview").classList.remove("show");
+                document.getElementById("dzInner").style.visibility = "";
+                document.getElementById("dropzone").style.cursor = "pointer";
+                document.getElementById("resultBar").style.display = "none";
+                document.getElementById("rbarFill").style.width = "0%";
+                document.getElementById("foldSteps").style.display = "none";
+                document.getElementById("fstepsList").innerHTML = "";
+                document.getElementById("sizeImg").src = "";
+                document.getElementById("sizeImg").style.display = "none";
+                document.getElementById("sizeNoImg").style.display = "";
+                document.getElementById("sizeNoImg").textContent =
+                    "Belum dikalibrasi";
+                showSection("uploadSection");
+                setStep(1);
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // DRAG AND DROP
+            // ════════════════════════════════════════════════════════════════
+
+            function onDragOver(e) {
+                e.preventDefault();
+                document.getElementById("dropzone").classList.add("drag-over");
+            }
+            function onDragLeave() {
+                document
+                    .getElementById("dropzone")
+                    .classList.remove("drag-over");
+            }
+            function onDrop(e) {
+                e.preventDefault();
+                document
+                    .getElementById("dropzone")
+                    .classList.remove("drag-over");
+                var f = e.dataTransfer.files[0];
+                if (f) handleFile(f);
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // CAMERA
+            // ════════════════════════════════════════════════════════════════
+
+            function openCamera() {
+                var inp = document.createElement("input");
+                inp.type = "file";
+                inp.accept = "image/*";
+                inp.capture = "environment";
+                inp.onchange = function (e) {
+                    var f = e.target.files[0];
+                    if (f) handleFile(f);
+                };
+                inp.click();
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // PROCESSING ANIMATION
+            // ════════════════════════════════════════════════════════════════
+
+            var _procTimers = [];
+
+            function startProcAnim() {
+                ["ps1", "ps2", "ps3"].forEach(function (id) {
+                    document.getElementById(id).className = "proc-step-item";
+                });
+                document.getElementById("ps1").className =
+                    "proc-step-item active";
+                _procTimers.push(
+                    setTimeout(function () {
+                        document.getElementById("ps1").className =
+                            "proc-step-item done";
+                        document.getElementById("ps2").className =
+                            "proc-step-item active";
+                    }, 900),
+                );
+                _procTimers.push(
+                    setTimeout(function () {
+                        document.getElementById("ps2").className =
+                            "proc-step-item done";
+                        document.getElementById("ps3").className =
+                            "proc-step-item active";
+                    }, 1900),
+                );
+            }
+
+            function stopProcAnim() {
+                _procTimers.forEach(clearTimeout);
+                _procTimers = [];
+                ["ps1", "ps2", "ps3"].forEach(function (id) {
+                    document.getElementById(id).className =
+                        "proc-step-item done";
+                });
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // PIPELINE
+            // ════════════════════════════════════════════════════════════════
+
+            async function runPipeline(file) {
+                showSection("processingSection");
+                startProcAnim();
+                log("info", "Memulai analisis pakaian...");
+
+                var fd = new FormData();
+                fd.append("image", file, file.name || "photo.jpg");
+
+                var classKey = null;
+                var confidence = 0;
+                var isConf = false;
+                var foldData = null;
+                var sizeData = null;
+
+                try {
+                    var res = await fetch("/predict", {
+                        method: "POST",
+                        body: fd,
+                    });
+                    var data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || res.statusText);
+
+                    classKey = data.predicted_class;
+                    confidence = data.confidence || 0;
+                    isConf =
+                        data.is_confident != null ? data.is_confident : true;
+                    foldData = data.fold || null;
+                    sizeData = data.size || null;
+                } catch (err) {
+                    stopProcAnim();
+                    log("error", "Gagal menghubungi server: " + err.message);
+                    toast(
+                        "warn",
+                        "Server tidak terjangkau \u2014 menampilkan deteksi tepi lokal.",
+                    );
+                    // Show result section with client-side Canny only; skip 2nd toast
+                    renderResult(file, null, 0, false, null, null);
+                    return;
+                }
+
+                stopProcAnim();
+                renderResult(
+                    file,
+                    classKey,
+                    confidence,
+                    isConf,
+                    foldData,
+                    sizeData,
+                );
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // RESULT BAR + FOLD STEPS
+            // ════════════════════════════════════════════════════════════════
+
+            function showResultBar(label, confidence, isConf) {
+                var bar = document.getElementById("resultBar");
+                // Use innerHTML (not textContent) so the size-chip <span> renders as HTML
+                document.getElementById("rbarName").innerHTML = label;
+                var subText = isConf
+                    ? "Terdeteksi dengan keyakinan " + confidence + "%"
+                    : "Keyakinan rendah (" +
+                      confidence +
+                      "%) — foto lebih jelas?";
+                document.getElementById("rbarSub").textContent = subText;
+                document.getElementById("rbarPct").textContent =
+                    confidence + "%";
+                // Warna bar: hijau kalau confident, oranye kalau di bawah threshold
+                var fill = document.getElementById("rbarFill");
+                fill.style.background = isConf
+                    ? "var(--primary)"
+                    : "var(--warn)";
+                document.getElementById("rbarPct").style.color = isConf
+                    ? "var(--primary)"
+                    : "var(--warn)";
+                setTimeout(function () {
+                    fill.style.width = confidence + "%";
+                }, 100);
+                bar.style.display = "flex";
+            }
+
+            function showFoldSteps(steps) {
+                var list = document.getElementById("fstepsList");
+                list.innerHTML = "";
+                steps.forEach(function (step, i) {
+                    var div = document.createElement("div");
+                    div.className = "fstep-item";
+                    div.innerHTML =
+                        '<div class="fstep-num">' +
+                        (i + 1) +
+                        "</div>" +
+                        "<div>" +
+                        '<div class="fstep-title">' +
+                        step.title +
+                        "</div>" +
+                        '<div class="fstep-desc">' +
+                        (step.desc || step.description || "") +
+                        "</div>" +
+                        "</div>";
+                    list.appendChild(div);
+                });
+                document.getElementById("foldSteps").style.display = "block";
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // RENDER RESULT
+            // ════════════════════════════════════════════════════════════════
+
+            function renderResult(
+                file,
+                classKey,
+                confidence,
+                isConf,
+                foldData,
+                sizeData,
+            ) {
+                var label =
+                    CLASS_LABELS[classKey] ||
+                    (classKey ? classKey.replace(/_/g, " ") : "Tidak Dikenali");
+                var emoji = CLASS_EMOJI[classKey] || "\u{1F457}";
+                var confPct = Math.round(confidence * 100);
+
+                // Size chip (appended to result bar subtitle)
+                var sizeChip = "";
+                if (sizeData && sizeData.available) {
+                    var s = sizeData.size;
+                    var cmLabel = sizeData.lebar_cm
+                        ? " " + sizeData.lebar_cm + " cm"
+                        : "";
+                    sizeChip =
+                        ' <span class="size-chip size-' +
+                        s +
+                        '">' +
+                        s +
+                        cmLabel +
+                        "</span>";
+                }
+
+                // Result bar
+                if (classKey)
+                    showResultBar(
+                        emoji + " " + label + sizeChip,
+                        confPct,
+                        isConf,
+                    );
+
+                // Fold image panel
+                var hasFoldImg =
+                    foldData && foldData.available && foldData.image;
+                if (hasFoldImg) {
+                    document.getElementById("foldImg").src =
+                        "data:image/jpeg;base64," + foldData.image;
+                    document.getElementById("foldImg").style.display = "";
+                    document.getElementById("foldNoImg").style.display = "none";
+                } else {
+                    document.getElementById("foldImg").style.display = "none";
+                    document.getElementById("foldNoImg").style.display = "";
+                }
+
+                // Size image panel
+                var hasSizeImg =
+                    sizeData && sizeData.available && sizeData.image;
+                if (hasSizeImg) {
+                    document.getElementById("sizeImg").src =
+                        "data:image/jpeg;base64," + sizeData.image;
+                    document.getElementById("sizeImg").style.display = "";
+                    document.getElementById("sizeNoImg").style.display = "none";
+                } else {
+                    document.getElementById("sizeImg").style.display = "none";
+                    var noImgEl = document.getElementById("sizeNoImg");
+                    noImgEl.textContent =
+                        sizeData && sizeData.reason === "not_configured"
+                            ? "Belum dikalibrasi"
+                            : "Tidak tersedia";
+                    noImgEl.style.display = "";
+                }
+
+                // Always run canny for edge panel
+                runCanny(file);
+
+                // Build fold steps
+                var steps = [];
+                if (
+                    foldData &&
+                    foldData.available &&
+                    Array.isArray(foldData.fold_lines) &&
+                    foldData.fold_lines.length
+                ) {
+                    steps = foldData.fold_lines.map(function (fl) {
+                        var suffix = fl.label.replace(/^\d+\s+/, "").trim();
+                        return {
+                            title: fl.label,
+                            desc:
+                                STEP_DESC[suffix] ||
+                                "Ikuti garis panduan pada gambar di atas.",
+                        };
+                    });
+                } else {
+                    steps = FALLBACK_STEPS[classKey] || FALLBACK_STEPS._default;
+                }
+                showFoldSteps(steps);
+
+                showSection("resultSection");
+                setStep(3);
+
+                // Show result toast only when server returned a valid classification
+                if (classKey && isConf)
+                    toast(
+                        "success",
+                        emoji + " Terdeteksi: " + label + " (" + confPct + "%)",
+                    );
+                else if (classKey)
+                    toast(
+                        "info",
+                        "Klasifikasi tidak yakin \u2014 gunakan foto yang lebih jelas.",
+                    );
+                // classKey === null means server error — toast already shown in catch
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // CANNY (browser fallback)
+            // ════════════════════════════════════════════════════════════════
+
+            function convolve5(src, W, H) {
+                var k = [
+                    2, 4, 5, 4, 2, 4, 9, 12, 9, 4, 5, 12, 15, 12, 5, 4, 9, 12,
+                    9, 4, 2, 4, 5, 4, 2,
+                ];
+                var dst = new Float32Array(W * H);
+                for (var y = 2; y < H - 2; y++)
+                    for (var x = 2; x < W - 2; x++) {
+                        var s = 0;
+                        for (var ky = 0; ky < 5; ky++)
+                            for (var kx = 0; kx < 5; kx++)
+                                s +=
+                                    k[ky * 5 + kx] *
+                                    src[(y + ky - 2) * W + (x + kx - 2)];
+                        dst[y * W + x] = s / 159;
+                    }
+                return dst;
+            }
+
+            function runCanny(file) {
+                var img = new Image();
+                img.onload = function () {
+                    URL.revokeObjectURL(img.src);
+                    var off = document.getElementById("offscreen");
+                    off.width = img.naturalWidth;
+                    off.height = img.naturalHeight;
+                    var ctx = off.getContext("2d");
+                    ctx.drawImage(img, 0, 0);
+                    var W = off.width,
+                        H = off.height;
+                    var px = ctx.getImageData(0, 0, W, H).data;
+
+                    var gray = new Float32Array(W * H);
+                    for (var i = 0; i < W * H; i++)
+                        gray[i] =
+                            0.299 * px[i * 4] +
+                            0.587 * px[i * 4 + 1] +
+                            0.114 * px[i * 4 + 2];
+
+                    var blr = convolve5(gray, W, H);
+                    var GXk = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+                    var GYk = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+                    var mag = new Float32Array(W * H);
+                    var ang = new Float32Array(W * H);
+
+                    for (var y = 1; y < H - 1; y++)
+                        for (var x = 1; x < W - 1; x++) {
+                            var gx = 0,
+                                gy = 0;
+                            for (var ky = -1; ky <= 1; ky++)
+                                for (var kx = -1; kx <= 1; kx++) {
+                                    var v = blr[(y + ky) * W + (x + kx)];
+                                    gx += GXk[(ky + 1) * 3 + (kx + 1)] * v;
+                                    gy += GYk[(ky + 1) * 3 + (kx + 1)] * v;
+                                }
+                            var idx = y * W + x;
+                            mag[idx] = Math.sqrt(gx * gx + gy * gy);
+                            ang[idx] = (Math.atan2(gy, gx) * 180) / Math.PI;
+                        }
+
+                    var nms = new Float32Array(W * H);
+                    for (var y = 1; y < H - 1; y++)
+                        for (var x = 1; x < W - 1; x++) {
+                            var i = y * W + x,
+                                m = mag[i];
+                            var a = ang[i];
+                            if (a < 0) a += 180;
+                            var n1, n2;
+                            if (a < 22.5 || a >= 157.5) {
+                                n1 = mag[y * W + x + 1];
+                                n2 = mag[y * W + x - 1];
+                            } else if (a < 67.5) {
+                                n1 = mag[(y + 1) * W + x - 1];
+                                n2 = mag[(y - 1) * W + x + 1];
+                            } else if (a < 112.5) {
+                                n1 = mag[(y + 1) * W + x];
+                                n2 = mag[(y - 1) * W + x];
+                            } else {
+                                n1 = mag[(y - 1) * W + x - 1];
+                                n2 = mag[(y + 1) * W + x + 1];
+                            }
+                            nms[i] = m >= n1 && m >= n2 ? m : 0;
+                        }
+
+                    var maxM = 0;
+                    for (var i = 0; i < nms.length; i++)
+                        if (nms[i] > maxM) maxM = nms[i];
+                    var lo = maxM * 0.08,
+                        hi = maxM * 0.22,
+                        STRONG = 255,
+                        WEAK = 128;
+                    var edge = new Uint8Array(W * H);
+                    for (var i = 0; i < nms.length; i++) {
+                        if (nms[i] >= hi) edge[i] = STRONG;
+                        else if (nms[i] >= lo) edge[i] = WEAK;
+                    }
+
+                    function trace(y0, x0) {
+                        var stk = [[y0, x0]];
+                        while (stk.length) {
+                            var pt = stk.pop(),
+                                cy = pt[0],
+                                cx = pt[1];
+                            for (var dy = -1; dy <= 1; dy++)
+                                for (var dx = -1; dx <= 1; dx++) {
+                                    if (!dy && !dx) continue;
+                                    var ny = cy + dy,
+                                        nx = cx + dx;
+                                    if (ny < 0 || ny >= H || nx < 0 || nx >= W)
+                                        continue;
+                                    var ni = ny * W + nx;
+                                    if (edge[ni] === WEAK) {
+                                        edge[ni] = STRONG;
+                                        stk.push([ny, nx]);
+                                    }
+                                }
+                        }
+                    }
+                    for (var y = 0; y < H; y++)
+                        for (var x = 0; x < W; x++)
+                            if (edge[y * W + x] === STRONG) trace(y, x);
+                    for (var i = 0; i < edge.length; i++)
+                        if (edge[i] !== STRONG) edge[i] = 0;
+
+                    var cv = document.getElementById("cannyCanvas");
+                    cv.width = W;
+                    cv.height = H;
+                    var out = cv.getContext("2d");
+                    var od = out.createImageData(W, H);
+                    for (var i = 0; i < W * H; i++) {
+                        var vv = edge[i];
+                        od.data[i * 4] = vv;
+                        od.data[i * 4 + 1] = vv;
+                        od.data[i * 4 + 2] = vv;
+                        od.data[i * 4 + 3] = 255;
+                    }
+                    out.putImageData(od, 0, 0);
+                };
+                img.src = URL.createObjectURL(file);
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // KEYBOARD SUPPORT
+            // ════════════════════════════════════════════════════════════════
+
+            document
+                .getElementById("dropzone")
+                .addEventListener("keydown", function (e) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        dzClick();
+                    }
+                });
+
+            // ════════════════════════════════════════════════════════════════
+            // PERSPECTIVE CALIBRATION MODAL
+            // ════════════════════════════════════════════════════════════════
+
+            var _calibPoints = []; // normalized [x,y] pairs, max 4
+            var _calibFile = null; // original File object
+            var _calibSaved = false;
+            var CALIB_CORNERS = ["TL", "TR", "BR", "BL"];
+            var CALIB_COLORS = {
+                TL: "#ef4444",
+                TR: "#f97316",
+                BR: "#22c55e",
+                BL: "#3b82f6",
+            };
+
+            function openCalibModal() {
+                document.getElementById("calibOverlay").classList.add("open");
+                document.getElementById("calibModal").classList.add("open");
+                _calibReset();
+            }
+
+            function closeCalibModal() {
+                document
+                    .getElementById("calibOverlay")
+                    .classList.remove("open");
+                document.getElementById("calibModal").classList.remove("open");
+            }
+
+            function _calibReset() {
+                _calibPoints = [];
+                _calibFile = null;
+                _calibSaved = false;
+                document.getElementById("calibStepUpload").style.display = "";
+                document.getElementById("calibStepClick").style.display =
+                    "none";
+                document.getElementById("calibPreviewWrap").style.display =
+                    "none";
+                document.getElementById("calibImg").src = "";
+                document
+                    .getElementById("calibImgWrap")
+                    .classList.remove("done");
+                document.getElementById("calibSvg").innerHTML = "";
+                document.getElementById("calibFileInput").value = "";
+                ["btnCalibReset", "btnCalibPreview", "btnCalibSave"].forEach(
+                    function (id) {
+                        document.getElementById(id).disabled = true;
+                    },
+                );
+                _updateCornerChips();
+            }
+
+            function calibReset() {
+                _calibReset();
+            }
+
+            function calibTriggerUpload() {
+                document.getElementById("calibFileInput").click();
+            }
+
+            function calibDragOver(e) {
+                e.preventDefault();
+                document
+                    .getElementById("calibUploadArea")
+                    .classList.add("drag-over");
+            }
+            function calibDragLeave() {
+                document
+                    .getElementById("calibUploadArea")
+                    .classList.remove("drag-over");
+            }
+            function calibDrop(e) {
+                e.preventDefault();
+                calibDragLeave();
+                if (e.dataTransfer.files[0])
+                    _calibLoadFile(e.dataTransfer.files[0]);
+            }
+            function calibOnFile(e) {
+                if (e.target.files[0]) _calibLoadFile(e.target.files[0]);
+            }
+
+            function _calibLoadFile(file) {
+                if (!file.type.startsWith("image/")) {
+                    toast("error", "File harus berupa gambar (JPEG/PNG/WEBP)");
+                    return;
+                }
+                _calibFile = file;
+                _calibPoints = [];
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById("calibImg").src = e.target.result;
+                    document.getElementById("calibStepUpload").style.display =
+                        "none";
+                    document.getElementById("calibStepClick").style.display =
+                        "";
+                    document.getElementById("calibSvg").innerHTML = "";
+                    document
+                        .getElementById("calibImgWrap")
+                        .classList.remove("done");
+                    document.getElementById("btnCalibReset").disabled = false;
+                    _updateCornerChips();
+                    log("info", "Foto pelipat dimuat. Klik 4 marker sudut.");
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function calibImgClick(e) {
+                if (_calibPoints.length >= 4) return;
+                var wrap = document.getElementById("calibImgWrap");
+                var img = document.getElementById("calibImg");
+                var wRect = wrap.getBoundingClientRect();
+                // Account for object-fit:contain letterboxing
+                var dispW = img.offsetWidth,
+                    dispH = img.offsetHeight;
+                var ox = (wRect.width - dispW) / 2;
+                var oy = (wRect.height - dispH) / 2;
+                var rx = e.clientX - wRect.left - ox;
+                var ry = e.clientY - wRect.top - oy;
+                if (rx < 0 || ry < 0 || rx > dispW || ry > dispH) return;
+                var nx = rx / dispW,
+                    ny = ry / dispH;
+                _calibPoints.push([nx, ny]);
+                _renderCalibDots();
+                _updateCornerChips();
+                var corner = CALIB_CORNERS[_calibPoints.length - 1];
+                log(
+                    "info",
+                    "Titik " +
+                        _calibPoints.length +
+                        " (" +
+                        corner +
+                        ") diklik: " +
+                        nx.toFixed(3) +
+                        ", " +
+                        ny.toFixed(3),
+                );
+                if (_calibPoints.length === 4) {
+                    document
+                        .getElementById("calibImgWrap")
+                        .classList.add("done");
+                    document.getElementById("btnCalibPreview").disabled = false;
+                    document.getElementById("btnCalibSave").disabled = false;
+                    toast("info", "4 titik selesai. Klik Preview atau Simpan.");
+                }
+            }
+
+            function _renderCalibDots() {
+                var svg = document.getElementById("calibSvg");
+                var img = document.getElementById("calibImg");
+                svg.innerHTML = "";
+                var W = img.offsetWidth,
+                    H = img.offsetHeight;
+                // Draw lines connecting points
+                if (_calibPoints.length > 1) {
+                    for (var i = 0; i < _calibPoints.length; i++) {
+                        var j = (i + 1) % _calibPoints.length;
+                        if (j >= _calibPoints.length && _calibPoints.length < 4)
+                            continue;
+                        if (j === _calibPoints.length) continue; // don't close until 4
+                        var x1 = _calibPoints[i][0] * W,
+                            y1 = _calibPoints[i][1] * H;
+                        var x2 = _calibPoints[j][0] * W,
+                            y2 = _calibPoints[j][1] * H;
+                        var line = document.createElementNS(
+                            "http://www.w3.org/2000/svg",
+                            "line",
+                        );
+                        line.setAttribute("x1", x1);
+                        line.setAttribute("y1", y1);
+                        line.setAttribute("x2", x2);
+                        line.setAttribute("y2", y2);
+                        line.setAttribute("stroke", "rgba(255,255,0,0.7)");
+                        line.setAttribute("stroke-width", "1.5");
+                        line.setAttribute("stroke-dasharray", "4 3");
+                        svg.appendChild(line);
+                    }
+                    if (_calibPoints.length === 4) {
+                        // Close polygon
+                        var x1 = _calibPoints[3][0] * W,
+                            y1 = _calibPoints[3][1] * H;
+                        var x2 = _calibPoints[0][0] * W,
+                            y2 = _calibPoints[0][1] * H;
+                        var line = document.createElementNS(
+                            "http://www.w3.org/2000/svg",
+                            "line",
+                        );
+                        line.setAttribute("x1", x1);
+                        line.setAttribute("y1", y1);
+                        line.setAttribute("x2", x2);
+                        line.setAttribute("y2", y2);
+                        line.setAttribute("stroke", "rgba(255,255,0,0.7)");
+                        line.setAttribute("stroke-width", "1.5");
+                        svg.appendChild(line);
+                    }
+                }
+                // Draw dots
+                for (var i = 0; i < _calibPoints.length; i++) {
+                    var cx = _calibPoints[i][0] * W,
+                        cy = _calibPoints[i][1] * H;
+                    var corner = CALIB_CORNERS[i];
+                    var color = CALIB_COLORS[corner];
+                    var g = document.createElementNS(
+                        "http://www.w3.org/2000/svg",
+                        "g",
+                    );
+                    var circle = document.createElementNS(
+                        "http://www.w3.org/2000/svg",
+                        "circle",
+                    );
+                    circle.setAttribute("cx", cx);
+                    circle.setAttribute("cy", cy);
+                    circle.setAttribute("r", "9");
+                    circle.setAttribute("fill", color);
+                    circle.setAttribute("stroke", "white");
+                    circle.setAttribute("stroke-width", "2");
+                    var text = document.createElementNS(
+                        "http://www.w3.org/2000/svg",
+                        "text",
+                    );
+                    text.setAttribute("x", cx);
+                    text.setAttribute("y", cy + 4);
+                    text.setAttribute("text-anchor", "middle");
+                    text.setAttribute("font-size", "9");
+                    text.setAttribute("font-weight", "bold");
+                    text.setAttribute("fill", "white");
+                    text.textContent = (i + 1).toString();
+                    g.appendChild(circle);
+                    g.appendChild(text);
+                    svg.appendChild(g);
+                    // Label
+                    var lbl = document.createElementNS(
+                        "http://www.w3.org/2000/svg",
+                        "text",
+                    );
+                    lbl.setAttribute("x", cx + 13);
+                    lbl.setAttribute("y", cy - 8);
+                    lbl.setAttribute("font-size", "11");
+                    lbl.setAttribute("font-weight", "bold");
+                    lbl.setAttribute("fill", color);
+                    lbl.setAttribute("stroke", "rgba(0,0,0,0.6)");
+                    lbl.setAttribute("stroke-width", "2");
+                    lbl.setAttribute("paint-order", "stroke");
+                    lbl.textContent = corner;
+                    svg.appendChild(lbl);
+                }
+            }
+
+            function _updateCornerChips() {
+                CALIB_CORNERS.forEach(function (c, i) {
+                    var chip = document.getElementById("chip-" + c);
+                    if (!chip) return;
+                    chip.classList.remove("active", "done");
+                    if (i < _calibPoints.length) chip.classList.add("done");
+                    else if (i === _calibPoints.length)
+                        chip.classList.add("active");
+                });
+            }
+
+            async function _calibSendRequest(previewOnly) {
+                if (!_calibFile || _calibPoints.length !== 4) {
+                    toast(
+                        "error",
+                        "Upload foto dan klik 4 titik terlebih dahulu.",
+                    );
+                    return null;
+                }
+                var fd = new FormData();
+                fd.append("image", _calibFile);
+                fd.append("points", JSON.stringify(_calibPoints));
+                fd.append("preview_only", previewOnly ? "true" : "false");
+                try {
+                    var resp = await fetch("/calibrate-perspective", {
+                        method: "POST",
+                        body: fd,
+                    });
+                    var data = await resp.json();
+                    if (!resp.ok)
+                        throw new Error(data.detail || "Error " + resp.status);
+                    return data;
+                } catch (e) {
+                    toast("error", "Kalibrasi gagal: " + e.message);
+                    log("error", "Calibrate-perspective error: " + e.message);
+                    return null;
+                }
+            }
+
+            async function calibPreview() {
+                document.getElementById("btnCalibPreview").disabled = true;
+                toast("info", "Menghitung preview warp...");
+                var data = await _calibSendRequest(true);
+                document.getElementById("btnCalibPreview").disabled = false;
+                if (!data) return;
+                document.getElementById("calibPreviewImg").src =
+                    "data:image/jpeg;base64," + data.preview_image;
+                document.getElementById("calibPreviewWrap").style.display = "";
+                log(
+                    "success",
+                    "Preview warp berhasil. Scale: " +
+                        data.scale_cm_per_px +
+                        " cm/px",
+                );
+                toast(
+                    "success",
+                    "Preview warp selesai. Cek hasil di bawah foto.",
+                );
+            }
+
+            async function calibSave() {
+                document.getElementById("btnCalibSave").disabled = true;
+                toast("info", "Menyimpan kalibrasi perspektif...");
+                var data = await _calibSendRequest(false);
+                if (!data) {
+                    document.getElementById("btnCalibSave").disabled = false;
+                    return;
+                }
+                document.getElementById("calibPreviewImg").src =
+                    "data:image/jpeg;base64," + data.preview_image;
+                document.getElementById("calibPreviewWrap").style.display = "";
+                _calibSaved = true;
+                toast(
+                    "success",
+                    "\u2713 Kalibrasi perspektif disimpan! Scale: " +
+                        data.scale_cm_per_px +
+                        " cm/px",
+                );
+                log(
+                    "success",
+                    "Kalibrasi perspektif disimpan. src_points: " +
+                        JSON.stringify(data.src_points),
+                );
+                setTimeout(closeCalibModal, 1800);
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // HEALTH CHECK
+            // ════════════════════════════════════════════════════════════════
+
+            async function checkHealth() {
+                var dot = document.getElementById("dotLive");
+                var text = document.getElementById("statusText");
+                try {
+                    var r = await fetch("/health", { cache: "no-store" });
+                    var d = await r.json();
+                    var ok = r.ok && d.status === "healthy";
+                    dot.style.background = ok
+                        ? "var(--success)"
+                        : "var(--danger)";
+                    text.textContent = ok ? "Online" : "Offline";
+                    if (ok) {
+                        dot.classList.add("pulse");
+                        log("info", "Server online — model siap");
+                    } else {
+                        dot.classList.remove("pulse");
+                        log("warn", "Server offline atau model belum siap");
+                    }
+                } catch (e) {
+                    dot.style.background = "var(--danger)";
+                    dot.classList.remove("pulse");
+                    text.textContent = "Offline";
+                    log("error", "Tidak dapat menghubungi server");
+                }
+            }
+
+            checkHealth();
+            setInterval(checkHealth, 30000);
+        </script>
+    </body>
 </html>
