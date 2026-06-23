@@ -45,12 +45,18 @@ FOLDER_WIDTH_CM: float = 90.0
 # Default size thresholds expressed in absolute centimetres.
 # Ordered largest-first so the first matching entry wins.
 # Can be overridden via "size_thresholds" key in config.json.
+#
+# Threshold ini dikalibrasi berdasarkan deteksi brightness segmentation
+# pada papan pelipat hitam 65cm×90cm.
+# Referensi: baju M → chest ≈40cm, length ≈55cm.
+# Gunakan SIZE_DEBUG_MODE=true untuk melihat nilai d: dan p: aktual,
+# lalu sesuaikan threshold berikut.
 DEFAULT_SIZE_MAP_CM: list[tuple[str, float]] = [
-    ("XXL", 68.0),
-    ("XL", 59.0),
-    ("L", 54.0),
-    ("M", 49.0),
-    ("S", 0.0),
+    ("XXL", 58.0),  # chest ≥ 58cm
+    ("XL", 50.0),  # chest ≥ 50cm
+    ("L", 45.0),  # chest ≥ 45cm
+    ("M", 38.0),  # chest ≥ 38cm  (ref: baju M = ~40cm)
+    ("S", 0.0),  # chest < 38cm
 ]
 
 # Labels for which size estimation is applicable
@@ -65,6 +71,21 @@ SIZE_ENABLED_LABELS: frozenset[str] = frozenset(
 
 # Module-level size map (mutated when config overrides are loaded)
 _size_map_cm: list[tuple[str, float]] = list(DEFAULT_SIZE_MAP_CM)
+
+# Length-based size thresholds (shirt collar-to-hem, cm).
+# Dikalibrasi berdasarkan: baju M = ~55cm panjang.
+DEFAULT_LENGTH_MAP_CM: list[tuple[str, float]] = [
+    ("XXL", 68.0),  # panjang ≥ 68cm
+    ("XL", 62.0),  # panjang ≥ 62cm
+    ("L", 58.0),  # panjang ≥ 58cm
+    ("M", 52.0),  # panjang ≥ 52cm  (ref: baju M = ~55cm)
+    ("S", 0.0),  # panjang < 52cm
+]
+
+_length_map_cm: list[tuple[str, float]] = list(DEFAULT_LENGTH_MAP_CM)
+
+# Ordered size list for rank comparison
+_SIZE_ORDER: list[str] = ["S", "M", "L", "XL", "XXL"]
 
 
 def load_folder_config(config_path: Path) -> Optional[dict]:
@@ -219,6 +240,58 @@ def estimate_size(
     return "S", round(lebar_cm, 1), round(ratio, 3)
 
 
+def estimate_size_combined(
+    chest_cm: float,
+    length_cm: float,
+) -> tuple[str, float, float]:
+    """
+    Estimasi ukuran menggunakan dua dimensi: lebar dada dan panjang baju.
+
+    Strategi: klasifikasi masing-masing dimensi secara independen, ambil
+    ukuran yang LEBIH BESAR dari keduanya.
+
+    Ini mengatasi chest yang ter-cap oleh lebar board (65cm): shirt L yang
+    chest-nya clips di ~63cm (→M), tapi panjangnya 70cm (→L), final = L.
+
+    Parameters
+    ----------
+    chest_cm  : Lebar dada estimasi dalam cm (dari bbox_h di warped frame).
+    length_cm : Panjang baju estimasi dalam cm (dari bbox_w di warped frame).
+
+    Returns
+    -------
+    (size, chest_cm, length_cm)
+    """
+    # Classify by chest
+    chest_size = "S"
+    for size, min_cm in _size_map_cm:
+        if chest_cm >= min_cm:
+            chest_size = size
+            break
+
+    # Classify by length
+    length_size = "S"
+    for size, min_cm in _length_map_cm:
+        if length_cm >= min_cm:
+            length_size = size
+            break
+
+    # Take the larger of the two
+    chest_idx = _SIZE_ORDER.index(chest_size)
+    length_idx = _SIZE_ORDER.index(length_size)
+    final_size = _SIZE_ORDER[max(chest_idx, length_idx)]
+
+    logger.debug(
+        "[SIZE/COMBINED] chest=%.1fcm→%s  length=%.1fcm→%s  final=%s",
+        chest_cm,
+        chest_size,
+        length_cm,
+        length_size,
+        final_size,
+    )
+    return final_size, round(chest_cm, 1), round(length_cm, 1)
+
+
 def is_size_enabled(label: str) -> bool:
     """Return True if size estimation is applicable for the given YOLO label."""
     return label in SIZE_ENABLED_LABELS
@@ -326,96 +399,263 @@ def get_largest_contour_bbox(
     frame: "np.ndarray",
 ) -> "tuple[int, int, int, int] | None":
     """
-    Jalankan adaptive Canny pada frame, kembalikan bounding rect kontur terlebar.
+    Deteksi bounding rect pakaian pada warped frame.
 
-    Didesain untuk bekerja pada frame yang sudah di-warp (perspektif sudah lurus),
-    maupun frame asli.
+    Strategi utama: Brightness Segmentation (L channel LAB).
+    Papan pelipat berwarna HITAM, pakaian lebih TERANG → mudah dipisahkan
+    dengan Otsu threshold pada channel L.
+    Pendekatan ini kebal terhadap lubang papan yang merusak Canny/density scan.
 
-    Pada warped frame, margin 3% dipotong dari semua sisi sebelum Canny
-    sehingga border warp (artefak tepi hasil getPerspectiveTransform) tidak
-    ikut terdeteksi sebagai kontur garmen.
+    Fallback: Canny + density scan jika brightness segmentation gagal
+    (mis. baju gelap di atas papan gelap).
 
     Returns
     -------
-    (x, y, w, h) dari kontur garmen, atau None jika tidak ditemukan.
+    (x, y, w, h) koordinat relatif ke frame asli, atau None.
     """
     import cv2
 
     h, w = frame.shape[:2]
 
     # Non-uniform margins:
-    # - y-axis (atas/bawah warped = sisi lengan baju): kecil (3%) agar lebar dada
-    #   terukur penuh, tidak terpotong.
-    # - x-axis (kiri/kanan warped = area kerah/hem dalam portrait): besar (8%) agar
-    #   bar mesin di atas baju dan meja di bawah baju ter-exclude dari deteksi.
-    #   Bar mesin biasanya ~50-70px dari kiri warped; m_x=8%*900=72px meng-exclude-nya.
-    m_y = max(2, int(h * 0.03))  # 3% of warped height  (~17px)
-    m_x = max(m_y, int(w * 0.08))  # 8% of warped width   (~72px)
+    # - m_y kecil (3%): jaga pengukuran lebar dada penuh di arah vertikal
+    # - m_x besar (8%): exclude bar mesin (kiri warped) dan meja (kanan warped)
+    m_y = max(2, int(h * 0.03))
+    m_x = max(m_y, int(w * 0.08))
     inner = frame[m_y : h - m_y, m_x : w - m_x]
+    ih, iw = inner.shape[:2]
 
-    # CLAHE pada channel L (LAB) untuk normalisasi kontras lokal.
-    # Ini membantu Canny menemukan tepi di badan baju yang memiliki
-    # warna uniform (abu-abu) dan kontras rendah terhadap latar belakang.
+    # ── Stage 1: Brightness Segmentation ───────────────────────────────────
+    # Papan pelipat hitam vs pakaian yang lebih terang → Otsu pada L channel
+    # Keunggulan: kebal terhadap lubang papan, tekstur papan, dan noise Canny.
     lab = cv2.cvtColor(inner, cv2.COLOR_BGR2LAB)
-    l_ch, a_ch, b_ch = cv2.split(lab)
+    l_ch = lab[:, :, 0]  # L = kecerahan (0=hitam, 255=putih)
+
+    otsu_val, bright_mask = cv2.threshold(
+        l_ch, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+
+    # ── Hapus kardus coklat/tan dari bright_mask (SEBELUM morph ops) ────────
+    # Root cause overestimate: kardus di papan ikut terdeteksi sebagai "baju"
+    # karena brightness-nya mirip. Kardus memiliki b* tinggi (kuning/coklat)
+    # dalam ruang warna LAB, sedangkan baju putih/terang memiliki b* netral.
+    #
+    # Skala OpenCV LAB: b*=128 netral, >128 kuning, <128 biru.
+    # Threshold 138 = 10 unit di atas netral → tangkap kardus coklat/tan
+    # tanpa menghapus baju putih, abu, atau warna lain yang lebih jenuh tapi
+    # tidak masuk range kuning-coklat (misal: baju merah, biru, hijau).
+    #
+    # Dilakukan SEBELUM morph ops agar close kernel tidak menjembatani
+    # piksel kardus ke piksel baju yang berdekatan.
+    b_ch = lab[:, :, 2]  # b* channel
+    _, cardboard_mask = cv2.threshold(b_ch, 138, 255, cv2.THRESH_BINARY)
+    bright_mask = cv2.bitwise_and(bright_mask, cv2.bitwise_not(cardboard_mask))
+    logger.debug(
+        "[BBOX/CARDBOARD] b*>138 pixels removed: %d",
+        int(np.count_nonzero(cardboard_mask)),
+    )
+
+    # Morphological closing untuk mengisi lubang dalam area baju
+    # (misal: kancing, logo, lipatan yang lebih gelap dari kain)
+    close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
+    bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_CLOSE, close_k)
+    # Remove isolated small bright spots (bukan baju)
+    open_k = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10))
+    bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_OPEN, open_k)
+
+    # Cari kontur pada bright mask
+    contours_b, _ = cv2.findContours(
+        bright_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+
+    # Filter: ambil kontur dengan area cukup besar (bukan noise)
+    min_area = ih * iw * 0.05  # minimal 5% area inner frame = baju
+    valid_b = [c for c in contours_b if cv2.contourArea(c) > min_area]
+
+    if valid_b:
+        # Gunakan kontur terbesar (= baju utama)
+        largest_b = max(valid_b, key=cv2.contourArea)
+        bx, by, bw, bh = cv2.boundingRect(largest_b)
+        logger.debug(
+            "[BBOX/BRIGHT] otsu=%.0f  contours=%d  bbox=(%d,%d,%d,%d)",
+            otsu_val,
+            len(valid_b),
+            bx,
+            by,
+            bw,
+            bh,
+        )
+        return (bx + m_x, by + m_y, bw, bh)
+
+    # ── Stage 2: Fallback — Canny + Density Scan ──────────────────────────
+    # Digunakan saat brightness segmentation gagal:
+    # - Baju warna gelap di atas papan gelap (kontras L rendah)
+    # - Threshold Otsu tidak berhasil memisahkan baju dari papan
+    logger.debug("[BBOX] Brightness segmentation gagal, fallback ke Canny+density")
+
+    gray = cv2.cvtColor(inner, cv2.COLOR_BGR2GRAY)
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-    l_eq = clahe.apply(l_ch)
-    lab_eq = cv2.merge([l_eq, a_ch, b_ch])
-    inner_eq = cv2.cvtColor(lab_eq, cv2.COLOR_LAB2BGR)
+    gray_eq = clahe.apply(gray)
+    blur = cv2.GaussianBlur(gray_eq, (5, 5), 0)
 
-    gray = cv2.cvtColor(inner_eq, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    otsu_t, _ = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    edges = cv2.Canny(blur, max(10.0, otsu_t * 0.33), max(20.0, otsu_t * 0.66))
 
-    # Adaptive Canny via Otsu threshold
-    otsu_thresh, _ = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    lo = max(10.0, otsu_thresh * 0.33)
-    hi = max(20.0, otsu_thresh * 0.66)
-    edges = cv2.Canny(blur, lo, hi)
-
-    # Fallback: morphological gradient jika Canny tidak menemukan tepi
     if np.count_nonzero(edges) < 50:
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        gradient = cv2.morphologyEx(blur, cv2.MORPH_GRADIENT, kernel)
-        _, edges = cv2.threshold(gradient, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        grad = cv2.morphologyEx(blur, cv2.MORPH_GRADIENT, kernel)
+        _, edges = cv2.threshold(grad, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # Horizontal-dominant dilation: expand ke kiri-kanan (arah panjang baju)
-    # TANPA expand signifikan ke atas-bawah (arah lebar dada).
-    # Kernel (25 × 3): lebar horizontal 25px untuk bridge gap antar fitur baju,
-    # tinggi vertikal 3px (minimal) agar tidak menjangkau bar mesin / meja.
-    dil_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 3))
-    edges_dilated = cv2.dilate(edges, dil_kernel, iterations=3)
+    dil_k = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    edges = cv2.dilate(edges, dil_k, iterations=2)
 
-    contours, _ = cv2.findContours(
-        edges_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
-    # Fallback ke edges asli jika dilation menghilangkan semua kontur
-    if not contours:
-        contours, _ = cv2.findContours(
-            edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-    if not contours:
+    # Density scan dengan threshold lebih tinggi untuk filter lubang papan
+    min_density = max(20, min(iw, ih) // 20)
+    row_counts = np.sum(edges > 0, axis=1)
+    col_counts = np.sum(edges > 0, axis=0)
+    valid_rows = np.where(row_counts >= min_density)[0]
+    valid_cols = np.where(col_counts >= min_density)[0]
+    if len(valid_rows) < 2:
+        valid_rows = np.where(row_counts > 0)[0]
+    if len(valid_cols) < 2:
+        valid_cols = np.where(col_counts > 0)[0]
+    if len(valid_rows) < 2 or len(valid_cols) < 2:
         return None
 
-    # Filter kontur terlalu kecil (noise)
-    ih, iw = inner.shape[:2]
-    min_area = ih * iw * 0.005
-    valid = [c for c in contours if cv2.contourArea(c) > min_area]
-    if not valid:
-        valid = contours
-
-    # Global union seluruh kontur valid.
-    # Di warped frame, seluruh area = papan pelipat = area baju.
-    # Tidak ada objek asing di luar board, jadi semua kontur valid = bagian baju.
-    # Ini menggantikan anchor+proximity yang gagal mendeteksi badan baju
-    # karena proximity hanya horizontal dan tidak mencakup badan baju yang jauh.
-    rects = [cv2.boundingRect(c) for c in valid]
-    ux1 = min(r[0] for r in rects)
-    ux2 = max(r[0] + r[2] for r in rects)
-    uy1 = min(r[1] for r in rects)
-    uy2 = max(r[1] + r[3] for r in rects)
-
-    # Kembalikan koordinat relatif ke frame asli (tambah kembali margin non-uniform)
+    uy1, uy2 = int(valid_rows[0]), int(valid_rows[-1])
+    ux1, ux2 = int(valid_cols[0]), int(valid_cols[-1])
     return (ux1 + m_x, uy1 + m_y, ux2 - ux1, uy2 - uy1)
+
+
+def _measure_shirt_slices(
+    warped: "np.ndarray",
+    bbox: "tuple[int, int, int, int]",
+) -> "tuple[float, float]":
+    """
+    Ukur lebar dada dan panjang baju menggunakan pendekatan SLICE.
+
+    Masalah dengan full-bbox measurement:
+    - Chest (bbox_h): termasuk ujung lengan di papan → terlalu besar
+    - Length (bbox_w): termasuk kardus di tepi warped → terlalu besar
+
+    Solusi slice:
+    - CHEST  : ukur vertical extent pada slice x = 15-35% dari kerah
+               (posisi dada, jauh dari ujung lengan di tepi warped).
+    - LENGTH : ukur horizontal extent pada slice y = 35-65% dari bbox
+               (badan tengah, menghindari kardus yang ada di tepi kanan warped).
+
+    Di tiap slice, hitung pixel terang per baris/kolom dan hanya sertakan
+    baris/kolom yang memiliki density ≥ 40% dari lebar slice
+    (threshold ini menyaring ujung lengan tipis & kardus yang terpisah).
+
+    Returns
+    -------
+    (chest_px, length_px) dalam koordinat warped frame.
+    """
+    import cv2
+
+    h, w = warped.shape[:2]
+    m_y = max(2, int(h * 0.03))
+    m_x = max(m_y, int(w * 0.08))
+    inner = warped[m_y : h - m_y, m_x : w - m_x]
+    ih, iw = inner.shape[:2]
+
+    # Bright mask (same Otsu on L channel) + hapus kardus coklat
+    lab = cv2.cvtColor(inner, cv2.COLOR_BGR2LAB)
+    l_ch = lab[:, :, 0]
+    _, bright = cv2.threshold(l_ch, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Hapus kardus (b* > 138) sama seperti di get_largest_contour_bbox.
+    # Wajib dilakukan di sini karena bright mask dihitung ulang secara independen.
+    b_ch = lab[:, :, 2]
+    _, cardboard_mask_s = cv2.threshold(b_ch, 138, 255, cv2.THRESH_BINARY)
+    bright = cv2.bitwise_and(bright, cv2.bitwise_not(cardboard_mask_s))
+
+    # Closing kecil untuk mengisi lubang pada kain (sama dengan Stage 1 di get_largest_contour_bbox)
+    close_ks = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+    bright = cv2.morphologyEx(bright, cv2.MORPH_CLOSE, close_ks)
+
+    # Translate bbox to inner-frame coordinates
+    bx, by, bw, bh = bbox
+    bx_i = max(0, bx - m_x)
+    by_i = max(0, by - m_y)
+    bw_i = min(bw, iw - bx_i)
+    bh_i = min(bh, ih - by_i)
+
+    # ── CHEST: cari segmen kontigu terpanjang per kolom ────────────────────
+    # Root cause lama: active_r[-1] - active_r[0] mengukur span TOTAL dari
+    # piksel terang paling atas ke paling bawah, termasuk frame kayu papan
+    # pelipat yang muncul sebagai strip cerah di atas DAN bawah warped frame.
+    # Hasilnya selalu ≈ 611px (tinggi inner frame) berapapun ukuran baju.
+    #
+    # Fix: gunakan SEGMEN KONTIGU TERPANJANG dari baris aktif per kolom.
+    # Gap gelap antara frame kayu (tepi) dan baju (tengah) memisahkan segmen,
+    # sehingga hanya badan baju yang terukur.
+    chest_vals: list[int] = []
+    scan_x_start = bx_i + int(bw_i * 0.10)
+    scan_x_end = bx_i + int(bw_i * 0.80)
+    # Minimal 20% bbox height atau 100px (≈10cm) agar noise tidak masuk.
+    min_chest_px = max(100, int(bh_i * 0.20))
+    for xi in range(scan_x_start, min(scan_x_end, iw), 4):
+        col = bright[by_i : by_i + bh_i, max(0, xi) : min(iw, xi + 4)]
+        if col.size == 0:
+            continue
+        row_active = np.any(col > 0, axis=1)
+        # Temukan semua segmen kontigu: [start, end) per segmen
+        padded = np.concatenate(([False], row_active, [False]))
+        seg_starts = np.where(~padded[:-1] & padded[1:])[0]
+        seg_ends = np.where(padded[:-1] & ~padded[1:])[0]
+        if len(seg_starts):
+            max_seg = int(np.max(seg_ends - seg_starts))
+            if max_seg >= min_chest_px:
+                chest_vals.append(max_seg)
+
+    # Fallback bertingkat jika scan tidak menghasilkan cukup nilai
+    if len(chest_vals) >= 5:
+        chest_px = float(np.percentile(chest_vals, 15))
+    elif len(chest_vals) >= 1:
+        # Terlalu sedikit sampel → pakai median agar lebih stabil
+        chest_px = float(np.median(chest_vals))
+    else:
+        # Tidak ada sampel sama sekali → estimasi konservatif 65% bbox height
+        chest_px = float(bh_i * 0.65)
+
+    # ── LENGTH: horizontal slice at 35-65% of bbox height (body centre) ────
+    # At the vertical centre of the shirt, only the shirt body is present
+    # (sleeve tips are at the top/bottom of the warped frame).
+    # Cardboard visible at the right edge of warped is separated by a dark
+    # board gap → column density drops to 0 before reaching the cardboard.
+    ly1 = by_i + int(bh_i * 0.35)
+    ly2 = by_i + int(bh_i * 0.65)
+    ly1 = max(0, min(ly1, ih - 1))
+    ly2 = max(ly1 + 1, min(ly2, ih))
+
+    length_px = float(bw_i * 0.65)  # fallback konservatif 65% bbox width
+    if ly2 > ly1:
+        l_slice = bright[ly1:ly2, bx_i : bx_i + bw_i]
+        if l_slice.size > 0:
+            col_cnts = np.sum(l_slice > 0, axis=0)
+            min_d = max(1, int((ly2 - ly1) * 0.40))
+            col_active_arr = col_cnts >= min_d
+            # Gunakan SEGMEN KONTIGU TERPANJANG (bukan active_c[-1] - active_c[0])
+            # untuk menghindari kardus / ubin lantai yang terpisah oleh gap gelap.
+            padded_c = np.concatenate(([False], col_active_arr, [False]))
+            seg_s = np.where(~padded_c[:-1] & padded_c[1:])[0]
+            seg_e = np.where(padded_c[:-1] & ~padded_c[1:])[0]
+            if len(seg_s):
+                max_seg_l = int(np.max(seg_e - seg_s))
+                if max_seg_l > 0:
+                    length_px = float(max_seg_l)
+
+    logger.debug(
+        "[SLICE] chest_vals=%d  chest=%.0fpx=%.1fcm  length=%.0fpx=%.1fcm",
+        len(chest_vals),
+        chest_px,
+        chest_px * 0.1,
+        length_px,
+        length_px * 0.1,
+    )
+    return chest_px, length_px
 
 
 def run_size_estimation(
@@ -460,17 +700,62 @@ def run_size_estimation(
         }
 
     _, _, bbox_w, bbox_h = bbox
+    measured_bbox = None  # diisi di warped mode
 
     # Tentukan scale berdasarkan mode
     if M is not None and dst_size is not None:
-        # Warped mode: scale = folder_height_cm / dst_height_px
-        # Shirt is placed collar-up; chest width maps to vertical axis in warped frame.
-        # dst_size[1] = 560px = 56cm → scale = 56/560 = 0.1 cm/px (same as horizontal)
-        folder_height_cm = float(config.get("folder_height_cm", 56.0))
-        scale = folder_height_cm / dst_size[1]
-        measure_px = float(bbox_h)
+        # Warped mode: gunakan SLICE-BASED measurement.
+        # bbox dari get_largest_contour_bbox = full bright region (termasuk lengan & kardus)
+        # → JANGAN langsung pakai bbox_h / bbox_w untuk pengukuran.
+        # _measure_shirt_slices mengukur:
+        #   chest_px : vertical extent di slice 15-35% dari kerah (posisi dada saja)
+        #   length_px: horizontal extent di slice 35-65% dari bbox (badan tengah saja)
+        folder_height_cm = float(config.get("folder_height_cm", 65.0))
+        folder_width_cm_val = float(config.get("folder_width_cm", FOLDER_WIDTH_CM))
+        scale_h = folder_height_cm / dst_size[1]  # 65/650 = 0.1 cm/px
+        scale_w = folder_width_cm_val / dst_size[0]  # 90/900 = 0.1 cm/px
+
+        chest_px, length_px = _measure_shirt_slices(warped, bbox)
+        chest_cm = chest_px * scale_h
+        length_cm = length_px * scale_w
+
+        # Faktor koreksi terpisah per dimensi (diatur di config.json).
+        # scale_correction_chest  : koreksi lebar dada  (chest_cm)
+        # scale_correction_length : koreksi panjang baju (length_cm)
+        # scale_correction_factor : fallback global jika yang spesifik tidak ada
+        #
+        # Cara hitung: correction = aktual_cm / terbaca_cm
+        # Contoh: chest terbaca 58.8cm, aktual 40cm → 40/58.8 = 0.680
+        global_corr = float(config.get("scale_correction_factor", 1.0))
+        chest_corr = float(config.get("scale_correction_chest", global_corr))
+        length_corr = float(config.get("scale_correction_length", global_corr))
+        chest_cm = round(chest_cm * chest_corr, 1)
+        length_cm = round(length_cm * length_corr, 1)
+        logger.debug(
+            "[CORRECTION] chest_corr=%.3f  length_corr=%.3f  "
+            "chest=%.1fcm  length=%.1fcm",
+            chest_corr,
+            length_corr,
+            chest_cm,
+            length_cm,
+        )
+
+        size, lebar_cm, panjang_cm = estimate_size_combined(chest_cm, length_cm)
+
+        # Build measured_bbox in warped space:
+        # represents the MEASURED shirt body (not raw detected region).
+        # Centered on detected bbox, width=length_px, height=chest_px.
+        # Used by app.py for accurate display on original frame.
+        bx_r, by_r, bw_r, bh_r = bbox
+        shirt_cx = bx_r + bw_r / 2
+        shirt_cy = by_r + bh_r / 2
+        m_bx = max(0, int(shirt_cx - length_px / 2))
+        m_by = max(0, int(shirt_cy - chest_px / 2))
+        m_bw = min(int(length_px), dst_size[0] - m_bx)
+        m_bh = min(int(chest_px), dst_size[1] - m_by)
+        measured_bbox = (m_bx, m_by, m_bw, m_bh)
     else:
-        # Non-warp mode: measure horizontal width as before
+        # Non-warp mode: measure horizontal width only (backward compat)
         scale = float(config.get("scale_cm_per_px") or 0.0)
         if scale <= 0 and config.get("folder_width_px"):
             folder_w_cm = float(config.get("folder_width_cm", FOLDER_WIDTH_CM))
@@ -480,16 +765,20 @@ def run_size_estimation(
             return {
                 "size": None,
                 "lebar_cm": 0.0,
+                "panjang_cm": 0.0,
                 "bbox": bbox,
                 "warped_frame": warped,
             }
-        measure_px = float(bbox_w)
-
-    size, lebar_cm, _ = estimate_size(measure_px, scale)
+        size, lebar_cm, _ = estimate_size(float(bbox_w), scale)
+        panjang_cm = 0.0
 
     return {
         "size": size,
         "lebar_cm": lebar_cm,
+        "panjang_cm": panjang_cm,
         "bbox": bbox,
+        "measured_bbox": measured_bbox
+        if (M is not None and dst_size is not None)
+        else None,
         "warped_frame": warped,
     }

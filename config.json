@@ -5,28 +5,17 @@
   "calib_image_width": 1600,
   "folder_width_cm": 90.0,
   "scale_cm_per_px": 0.1,
-  "folder_height_cm": 56.0,
+  "folder_height_cm": 65.0,
   "src_points": [
-    [
-      327,
-      353
-    ],
-    [
-      319,
-      1244
-    ],
-    [
-      604,
-      1210
-    ],
-    [
-      577,
-      345
-    ]
+    [335, 387],
+    [312, 1236],
+    [600, 1259],
+    [586, 379]
   ],
-  "dst_size": [
-    900,
-    560
-  ],
-  "has_perspective": true
+  "dst_size": [900, 650],
+  "has_perspective": true,
+  "scale_correction_factor": 1.0,
+  "scale_correction_chest": 0.68,
+  "scale_correction_length": 0.791,
+  "bbox_chest_expand": 0.55
 }

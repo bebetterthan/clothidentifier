@@ -67,7 +67,14 @@ try:
         estimate_size,
         is_size_enabled,
         load_folder_config,
+    )
+    from size_estimator import (
+        get_warp_matrix as _get_warp_matrix,
+    )
+    from size_estimator import (
         load_config as _size_load_config,
+    )
+    from size_estimator import (
         run_size_estimation as _size_module_run,
     )
     from visualization import (
@@ -606,6 +613,15 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
 # ── JPEG quality for all server-side image outputs (visualisations, not originals)
 _JPEG_QUALITY = [cv2.IMWRITE_JPEG_QUALITY, 85] if _CV2_AVAILABLE else []
 
+# ── Size label → BGR colour map for annotation overlays
+COLOR_MAP: dict[str, tuple[int, int, int]] = {
+    "S": (255, 200, 0),
+    "M": (50, 205, 50),
+    "L": (0, 165, 255),
+    "XL": (0, 80, 255),
+    "XXL": (0, 0, 220),
+}
+
 
 def _decode_and_canny(
     raw_bytes: bytes,
@@ -697,43 +713,96 @@ def run_size_estimation(img: np.ndarray, edges: np.ndarray, label: str) -> dict:
 
             size = result["size"]
             lebar_cm = result["lebar_cm"]
+            panjang_cm = result.get("panjang_cm", 0.0)
             bbox = result["bbox"]
-            warped = result["warped_frame"]
             ratio = round(lebar_cm / FOLDER_WIDTH_CM, 3)
-            cw = bbox[
-                3
-            ]  # height in warped frame = shirt chest width (collar-up placement)
+            cw = bbox[3]  # height in warped = chest measurement dimension
 
-            # === Restore natural portrait orientation for display ===
-            # The warp (src_points clicked TL→BL→BR→TR) encodes a
-            # 90°CW + H-flip transform of the original portrait frame.
-            # Applying H-flip then 90°CCW rotation recovers the natural
-            # portrait view: collar at top, hem at bottom, shirt facing front.
-            # Measurement (bbox_h = chest width) is NOT affected by this display transform.
-            warped_hflip = cv2.flip(warped, 1)
-            warped_display = cv2.rotate(warped_hflip, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            # === Display on ORIGINAL frame (no crop/warp) ===
+            # Gunakan measured_bbox (dimensi terukur: chest_px x length_px)
+            # bukan raw detected bbox agar yang ditampilkan sesuai hasil ukur.
+            # measured_bbox dicentrasi di atas detected shirt di warped space.
+            display_bbox = result.get("measured_bbox") or bbox
 
-            # Bbox transform: (bx, by, bw, bh) → (by, bx, bh, bw)
-            # Derived analytically from the H-flip + 90°CCW coordinate mapping.
-            bx, by, bw, bh = bbox
-            bbox_display = (by, bx, bh, bw)
+            annotated = img.copy()
+            try:
+                M_disp, _ = _get_warp_matrix(_state.size_config)
+                color = COLOR_MAP.get(size, (255, 255, 255))
+                if M_disp is not None:
+                    M_inv = np.linalg.inv(M_disp)
+                    bx, by, bw_b, bh_b = display_bbox
+                    corners_w = np.array(
+                        [
+                            [bx, by],
+                            [bx + bw_b, by],
+                            [bx + bw_b, by + bh_b],
+                            [bx, by + bh_b],
+                        ],
+                        dtype=np.float32,
+                    ).reshape(-1, 1, 2)
+                    corners_o = cv2.perspectiveTransform(corners_w, M_inv)
+                    corners_o = corners_o.reshape(-1, 2).astype(np.float64)
 
-            # Annotate the corrected portrait frame
-            annotated = warped_display.copy()
-            draw_size_result(
-                annotated, bbox_display, label, size, lebar_cm, debug=SIZE_DEBUG_MODE
-            )
+                    # === Expand bbox ke arah dada (horizontal di frame asli) ===
+                    # Papan pelipat (src_points) lebih sempit dari lebar baju
+                    # yang terlihat di kamera, sehingga bbox yang diproyeksikan
+                    # hanya mencakup area board. Expansion menambah padding
+                    # horizontal agar bbox menutupi tubuh baju secara menyeluruh.
+                    expand_pct = float(_state.size_config.get("bbox_chest_expand", 0.4))
+                    x_min = corners_o[:, 0].min()
+                    x_max = corners_o[:, 0].max()
+                    y_min = corners_o[:, 1].min()
+                    y_max = corners_o[:, 1].max()
+                    w_rect = x_max - x_min
+                    pad = w_rect * expand_pct / 2
+                    x1 = max(0, int(x_min - pad))
+                    x2 = min(img.shape[1] - 1, int(x_max + pad))
+                    y1 = max(0, int(y_min))
+                    y2 = min(img.shape[0] - 1, int(y_max))
+
+                    # Gambar rectangle di frame asli (bukan polylines)
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
+
+                    # Label di atas bbox
+                    lx = x1
+                    ly = max(15, y1 - 10)
+                else:
+                    lx, ly = 12, 30
+
+                # Build label text
+                text = f"{label} \u2014 {size}"
+                if SIZE_DEBUG_MODE:
+                    text += f"  (d:{lebar_cm:.1f}cm | p:{panjang_cm:.1f}cm)"
+                else:
+                    text += f"  ({lebar_cm:.1f}cm)"
+                cv2.putText(
+                    annotated,
+                    text,
+                    (lx, ly),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.65,
+                    color,
+                    2,
+                    cv2.LINE_AA,
+                )
+            except Exception as disp_exc:
+                logger.debug("[SIZE/DISP] Display annotation error: %s", disp_exc)
 
             _, buf = cv2.imencode(".jpg", annotated, _JPEG_QUALITY)
             size_b64 = base64.b64encode(buf).decode("utf-8")
 
             logger.debug(
-                "[SIZE/WARP] size=%s  lebar_cm=%.1f  bbox=%s", size, lebar_cm, bbox
+                "[SIZE/WARP] size=%s  chest=%.1f  length=%.1f  bbox=%s",
+                size,
+                lebar_cm,
+                panjang_cm,
+                bbox,
             )
             return {
                 "available": True,
                 "size": size,
                 "lebar_cm": lebar_cm,
+                "panjang_cm": panjang_cm,
                 "ratio": ratio,
                 "clothing_width_px": cw,
                 "scale_cm_per_px": round(
