@@ -174,10 +174,25 @@ def load_folder_config(config_path: Path) -> Optional[dict]:
         try:
             custom = {k: float(v) for k, v in data["size_thresholds"].items()}
             _size_map_cm = sorted(custom.items(), key=lambda kv: kv[1], reverse=True)
-            logger.info("[SIZE] Custom size map (cm) loaded: %s", _size_map_cm)
+            logger.info("[SIZE] Custom chest size map loaded: %s", _size_map_cm)
         except (TypeError, ValueError) as exc:
             logger.warning(
                 "[SIZE] Invalid 'size_thresholds' in config, using defaults: %s", exc
+            )
+
+    # Override length map — sama dengan size_thresholds tapi untuk panjang baju.
+    global _length_map_cm
+    _length_map_cm = list(DEFAULT_LENGTH_MAP_CM)
+    if "length_thresholds" in data:
+        try:
+            custom_l = {k: float(v) for k, v in data["length_thresholds"].items()}
+            _length_map_cm = sorted(
+                custom_l.items(), key=lambda kv: kv[1], reverse=True
+            )
+            logger.info("[SIZE] Custom length size map loaded: %s", _length_map_cm)
+        except (TypeError, ValueError) as exc:
+            logger.warning(
+                "[SIZE] Invalid 'length_thresholds' in config, using defaults: %s", exc
             )
 
     # fmt: off

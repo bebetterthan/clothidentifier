@@ -347,8 +347,16 @@ _LABEL_MAP: dict = {
 
 DEFAULT_CONFIG = FOLD_CONFIG["baju kaos"]
 
-# Sizes that require an extra (outer) fold line on each side.
+# Sizes that require an extra (outer) fold line on each SIDE.
 DOUBLE_FOLD_SIZES: frozenset = frozenset({"L", "XL", "XXL"})
+
+# Clothing types whose BOTTOM fold is always doubled, regardless of size.
+# baju_lengan_panjang (kemeja) membutuhkan 2x lipatan bawah karena lebih panjang.
+ALWAYS_DOUBLE_BOTTOM_TYPES: frozenset = frozenset({"kemeja"})
+
+# Clothing types whose SIDE folds are always doubled, regardless of size.
+# baju_lengan_panjang (kemeja) selalu butuh 2x lipat kiri & kanan.
+ALWAYS_DOUBLE_SIDES_TYPES: frozenset = frozenset({"kemeja"})
 
 # How far the outer fold line sits from the main fold line,
 # expressed as a fraction of the image dimension.
@@ -432,9 +440,15 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
     y3 = int(h * config["h_fold"])
     labels = config["labels"]
 
-    # Double-fold: compute extra (outer) fold line positions for sizes L / XL / XXL.
-    is_double = size in DOUBLE_FOLD_SIZES
-    if is_double:
+    # Double-fold: pisah kontrol untuk sisi (kiri/kanan) dan bawah.
+    #   is_double_sides  → extra outer vertical fold line (L/XL/XXL saja)
+    #   is_double_bottom → extra outer bottom fold line
+    #                      (L/XL/XXL ATAU tipe baju yang selalu 2x lipat bawah,
+    #                       mis. kemeja = baju_lengan_panjang)
+    is_double_sides = size in DOUBLE_FOLD_SIZES or (ct in ALWAYS_DOUBLE_SIDES_TYPES)
+    is_double_bottom = is_double_sides or (ct in ALWAYS_DOUBLE_BOTTOM_TYPES)
+
+    if is_double_sides:
         x1_outer = max(
             int(w * 0.05), int(w * (config["v_left"] - DOUBLE_FOLD_OUTER_DELTA))
         )
@@ -443,6 +457,7 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
             if config["v_right"] is not None
             else None
         )
+    if is_double_bottom:
         y3_outer = min(
             int(h * 0.92), int(h * (config["h_fold"] + DOUBLE_FOLD_OUTER_DELTA))
         )
@@ -460,8 +475,8 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
     # ── LINE 1 & LINE 2 — solid vertical lines (alpha 0.85) ────────────────
     ov_lines = result.copy()
 
-    # For double-fold sizes, draw the outer fold line first (dashed, slightly thinner)
-    if is_double:
+    # For double-fold sizes, draw the outer SIDE fold lines first (dashed)
+    if is_double_sides:
         _dashed_line(ov_lines, (x1_outer, y_top), (x1_outer, y_bot), WHITE, 2)
         fold_lines.append(
             {
@@ -483,8 +498,12 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
             )
 
     # Main (inner) fold lines — always drawn
-    label_left = ("Lipat kiri 2" if is_double else None) or labels[0] or "Lipat kiri"
-    label_right = ("Lipat kanan 2" if is_double else None) or labels[1] or "Lipat kanan"
+    label_left = (
+        ("Lipat kiri 2" if is_double_sides else None) or labels[0] or "Lipat kiri"
+    )
+    label_right = (
+        ("Lipat kanan 2" if is_double_sides else None) or labels[1] or "Lipat kanan"
+    )
 
     cv2.line(ov_lines, (x1_v, y_top), (x1_v, y_bot), WHITE, 2, cv2.LINE_AA)
     fold_lines.append(
@@ -512,8 +531,8 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
     # ── LINE 3 — dashed horizontal line(s) (alpha 0.85) ────────────────────
     ov_dash = result.copy()
 
-    # For double-fold: outer bottom fold line first
-    if is_double:
+    # For double-fold BOTTOM: kemeja selalu 2x lipat bawah, L/XL/XXL juga
+    if is_double_bottom:
         _dashed_line(ov_dash, (x_left, y3_outer), (x_right, y3_outer), WHITE, 2)
         fold_lines.append(
             {
@@ -525,7 +544,7 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
         )
 
     label_bottom = (
-        ("Lipat bawah 2" if is_double else None) or labels[2] or "Lipat bawah"
+        ("Lipat bawah 2" if is_double_bottom else None) or labels[2] or "Lipat bawah"
     )
     _dashed_line(ov_dash, (x_left, y3), (x_right, y3), WHITE, 2)
     cv2.addWeighted(ov_dash, 0.85, result, 0.15, 0, result)
@@ -541,15 +560,16 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
     # ── Arrows (alpha 0.70) ─────────────────────────────────────────────────
     ov_arr = result.copy()
 
-    # LINE 1 arrow — pointing inward (left)
+    # LINE 1 arrow — dari KIRI ke KANAN (menuju tengah/center)
+    # Lipat kiri = kain dari sisi kiri dilipat ke arah tengah → panah ke kanan
     cv2.arrowedLine(
-        ov_arr, (x1_v + 30, mid_y), (x1_v - 5, mid_y), WHITE, 1, cv2.LINE_AA, 0, 0.3
+        ov_arr, (x1_v - 30, mid_y), (x1_v + 5, mid_y), WHITE, 1, cv2.LINE_AA, 0, 0.3
     )
-    if is_double:
+    if is_double_sides:
         cv2.arrowedLine(
             ov_arr,
-            (x1_outer + 30, mid_y),
-            (x1_outer - 5, mid_y),
+            (x1_outer - 30, mid_y),
+            (x1_outer + 5, mid_y),
             WHITE,
             1,
             cv2.LINE_AA,
@@ -558,15 +578,16 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
         )
 
     if x2_v is not None:
-        # LINE 2 arrow — pointing inward (right)
+        # LINE 2 arrow — dari KANAN ke KIRI (menuju tengah/center)
+        # Lipat kanan = kain dari sisi kanan dilipat ke arah tengah → panah ke kiri
         cv2.arrowedLine(
-            ov_arr, (x2_v - 30, mid_y), (x2_v + 5, mid_y), WHITE, 1, cv2.LINE_AA, 0, 0.3
+            ov_arr, (x2_v + 30, mid_y), (x2_v - 5, mid_y), WHITE, 1, cv2.LINE_AA, 0, 0.3
         )
-    if is_double and x2_outer is not None:
+    if is_double_sides and x2_outer is not None:
         cv2.arrowedLine(
             ov_arr,
-            (x2_outer - 30, mid_y),
-            (x2_outer + 5, mid_y),
+            (x2_outer + 30, mid_y),
+            (x2_outer - 5, mid_y),
             WHITE,
             1,
             cv2.LINE_AA,
@@ -578,7 +599,7 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
     cv2.arrowedLine(
         ov_arr, (cx_img, y3 + 30), (cx_img, y3 + 5), WHITE, 1, cv2.LINE_AA, 0, 0.3
     )
-    if is_double:
+    if is_double_bottom:
         cv2.arrowedLine(
             ov_arr,
             (cx_img, y3_outer + 30),
@@ -596,10 +617,11 @@ def draw_fold_lines(img: np.ndarray, cloth_type: str, size: str | None = None) -
     label_y = int(h * 0.35)
     label_y_outer = int(h * 0.25)
 
-    if is_double:
+    if is_double_sides:
         _pill_label(result, "Lipat kiri 1", x1_outer, label_y_outer)
         if x2_outer is not None:
             _pill_label(result, "Lipat kanan 1", x2_outer, label_y_outer)
+    if is_double_bottom:
         _pill_label(result, "Lipat bawah 1", cx_img, y3_outer - 10)
 
     _pill_label(result, label_left, x1_v, label_y)
