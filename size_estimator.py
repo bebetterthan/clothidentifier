@@ -87,6 +87,11 @@ _length_map_cm: list[tuple[str, float]] = list(DEFAULT_LENGTH_MAP_CM)
 # Ordered size list for rank comparison
 _SIZE_ORDER: list[str] = ["S", "M", "L", "XL", "XXL"]
 
+# Global size upshift: geser hasil klasifikasi N tingkat ke atas.
+# 0 = tidak ada perubahan, 1 = M→L, L→XL, dll., 2 = M→XL, L→XXL.
+# Di-set via "size_upshift" di config.json.
+_size_upshift: int = 0
+
 
 def load_folder_config(config_path: Path) -> Optional[dict]:
     """
@@ -164,6 +169,21 @@ def load_folder_config(config_path: Path) -> Optional[dict]:
             logger.warning("[SIZE] 'folder_width_px' must be > 0")
             return None
         scale_cm_per_px = folder_width_cm / folder_width_px
+
+    # Override size_upshift — geser semua klasifikasi N tingkat ke atas untuk testing.
+    global _size_upshift
+    _size_upshift = 0
+    if "size_upshift" in data:
+        try:
+            _size_upshift = max(0, int(data["size_upshift"]))
+            if _size_upshift:
+                logger.info(
+                    "[SIZE] size_upshift=%d aktif — semua size dinaikkan %d level",
+                    _size_upshift,
+                    _size_upshift,
+                )
+        except (TypeError, ValueError) as exc:
+            logger.warning("[SIZE] Invalid 'size_upshift' in config: %s", exc)
 
     # Override size map when provided in config.
     # Always reset to defaults first so stale values from a previous load don't persist.
@@ -248,11 +268,21 @@ def estimate_size(
     lebar_cm = clothing_width_px * scale_cm_per_px
     ratio = lebar_cm / FOLDER_WIDTH_CM  # for debug/logging
 
+    base_size = "S"
     for size, min_cm in _size_map_cm:
         if lebar_cm >= min_cm:
-            return size, round(lebar_cm, 1), round(ratio, 3)
+            base_size = size
+            break
 
-    return "S", round(lebar_cm, 1), round(ratio, 3)
+    # Terapkan size_upshift
+    if _size_upshift:
+        base_idx = _SIZE_ORDER.index(base_size)
+        shifted_idx = min(base_idx + _size_upshift, len(_SIZE_ORDER) - 1)
+        final_size = _SIZE_ORDER[shifted_idx]
+    else:
+        final_size = base_size
+
+    return final_size, round(lebar_cm, 1), round(ratio, 3)
 
 
 def estimate_size_combined(
@@ -294,16 +324,32 @@ def estimate_size_combined(
     # Take the larger of the two
     chest_idx = _SIZE_ORDER.index(chest_size)
     length_idx = _SIZE_ORDER.index(length_size)
-    final_size = _SIZE_ORDER[max(chest_idx, length_idx)]
+    base_idx = max(chest_idx, length_idx)
+    final_size = _SIZE_ORDER[base_idx]
 
-    logger.debug(
-        "[SIZE/COMBINED] chest=%.1fcm→%s  length=%.1fcm→%s  final=%s",
-        chest_cm,
-        chest_size,
-        length_cm,
-        length_size,
-        final_size,
-    )
+    # Terapkan size_upshift jika dikonfigurasi
+    if _size_upshift:
+        shifted_idx = min(base_idx + _size_upshift, len(_SIZE_ORDER) - 1)
+        final_size = _SIZE_ORDER[shifted_idx]
+        logger.debug(
+            "[SIZE/COMBINED] chest=%.1fcm→%s  length=%.1fcm→%s  base=%s  upshift+%d→%s",
+            chest_cm,
+            chest_size,
+            length_cm,
+            length_size,
+            _SIZE_ORDER[base_idx],
+            _size_upshift,
+            final_size,
+        )
+    else:
+        logger.debug(
+            "[SIZE/COMBINED] chest=%.1fcm→%s  length=%.1fcm→%s  final=%s",
+            chest_cm,
+            chest_size,
+            length_cm,
+            length_size,
+            final_size,
+        )
     return final_size, round(chest_cm, 1), round(length_cm, 1)
 
 

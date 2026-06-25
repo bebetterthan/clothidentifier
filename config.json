@@ -7,31 +7,17 @@
   "scale_cm_per_px": 0.1,
   "folder_height_cm": 56.0,
   "src_points": [
-    [
-      338,
-      383
-    ],
-    [
-      314,
-      1236
-    ],
-    [
-      601,
-      1266
-    ],
-    [
-      583,
-      375
-    ]
+    [335, 383],
+    [312, 1236],
+    [594, 1274],
+    [585, 375]
   ],
-  "dst_size": [
-    900,
-    560
-  ],
+  "dst_size": [900, 560],
   "has_perspective": true,
   "scale_correction_factor": 1.0,
   "scale_correction_chest": 0.68,
   "scale_correction_length": 0.791,
+  "size_upshift": 1,
   "bbox_chest_expand": 0.55,
   "size_thresholds": {
     "XXL": 56.0,
